@@ -944,7 +944,14 @@ class SettingsWindow:
         ]
 
     def p_about(self):
-        return [("", [X(self._about)])]
+        return [("", [X(self._about)]),
+                ("Aide et retours", [
+                    B("Signaler un problème", "Ouvre un formulaire pré-rempli (version, système, dernières erreurs) "
+                      "sur GitHub. Rien n'est envoyé tant que vous ne l'avez pas relu et validé.",
+                      "Signaler…", self.app.report_problem, primary=True),
+                    B("Proposer une idée", "Une fonction qui vous manque, une amélioration", "Proposer…",
+                      self.app.suggest_idea),
+                ])]
 
     # ======================================================================== #
     #  Contenus personnalisés

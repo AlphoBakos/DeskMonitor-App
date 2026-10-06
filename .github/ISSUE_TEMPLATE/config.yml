@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Télécharger la dernière version
+    url: https://github.com/AlphoBakos/DeskMonitor-App/releases/latest
+    about: Le problème est peut-être déjà corrigé dans la dernière version.

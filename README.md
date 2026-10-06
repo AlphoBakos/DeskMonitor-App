@@ -27,6 +27,10 @@ Les installateurs ne sont pas encore signés :
 - **Windows** affiche « Windows a protégé votre ordinateur » : cliquez sur « Informations complémentaires », puis « Exécuter quand même » ;
 - **macOS** : faites un clic droit sur l'application, puis « Ouvrir ».
 
+## Un problème, une idée ?
+
+Dans DeskMonitor : **Paramètres › À propos › Signaler un problème** (formulaire pré-rempli, rien n'est envoyé sans votre validation) ou **Proposer une idée**. Vous pouvez aussi passer par l'onglet **Issues** de ce dépôt.
+
 ## Vie privée
 
 - Le monitoring, le rangement du bureau et la reconnaissance vocale fonctionnent **sur l'ordinateur, hors ligne**.

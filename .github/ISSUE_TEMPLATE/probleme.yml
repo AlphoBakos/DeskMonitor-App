@@ -1,0 +1,51 @@
+name: Signaler un problème
+description: Quelque chose ne marche pas comme prévu
+title: "[Problème] "
+labels: ["problème"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce problème ! Plus c'est précis, plus vite il sera corrigé.
+        Astuce : dans DeskMonitor, **Paramètres › À propos › Signaler un problème** remplit ce formulaire pour vous (version, système, dernières erreurs).
+  - type: textarea
+    id: quoi
+    attributes:
+      label: Que s'est-il passé ?
+      description: Ce que vous avez vu, et ce que vous attendiez à la place.
+      placeholder: "Ex. : quand je dis « ouvre Chrome », l'assistant répond qu'il ne trouve pas l'application."
+    validations:
+      required: true
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Comment reproduire le problème ?
+      placeholder: |
+        1. Ouvrir les paramètres
+        2. Choisir…
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Version de DeskMonitor
+      description: Visible dans Paramètres › À propos.
+      placeholder: "1.8.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: systeme
+    attributes:
+      label: Système
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (puce Apple)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: journal
+    attributes:
+      label: Dernières erreurs (facultatif)
+      description: Rempli automatiquement si vous passez par DeskMonitor. Vérifiez qu'il ne contient rien de personnel avant d'envoyer.
+      render: text

@@ -1,0 +1,29 @@
+name: Proposer une idée
+description: Une fonction qui vous manque, une amélioration
+title: "[Idée] "
+labels: ["idée"]
+body:
+  - type: textarea
+    id: idee
+    attributes:
+      label: Votre idée
+      placeholder: "Ex. : une carte qui affiche la température du processeur."
+    validations:
+      required: true
+  - type: textarea
+    id: pourquoi
+    attributes:
+      label: À quoi ça vous servirait ?
+      description: Dans quelle situation vous en auriez besoin.
+  - type: dropdown
+    id: usage
+    attributes:
+      label: Ce que vous utilisez le plus dans DeskMonitor
+      multiple: true
+      options:
+        - Cartes de monitoring
+        - Bureau organisé (panneaux d'applications)
+        - Assistant vocal
+        - Fonds d'écran / écran de verrouillage
+        - Alertes
+        - Nettoyage et optimisation

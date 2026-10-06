@@ -2261,6 +2261,33 @@ class DeskWidget:
     def action_power(self, high):
         self.run_bg(lambda: Optimizer.set_power_plan(high), "Changement du plan d'alimentation…")
 
+    # ----- retours des utilisateurs --------------------------------------------
+    def _issue_url(self, template, **fields):
+        from urllib.parse import urlencode
+        repo = self.cfg.get("update_repo") or DEFAULTS["update_repo"]
+        return f"https://github.com/{repo}/issues/new?" + urlencode({"template": template, **fields})
+
+    def report_problem(self):
+        """Ouvre le formulaire « Signaler un problème » de GitHub, pré-rempli (version, système, dernières
+        erreurs). Rien n'est envoyé : la personne relit puis valide elle-même dans son navigateur."""
+        import platform
+        import webbrowser
+        log = ""
+        try:
+            lines = (CONFIG_DIR / "erreurs.log").read_text(encoding="utf-8", errors="replace").splitlines()
+            log = "\n".join(lines[-40:])[-2500:]
+        except OSError:
+            pass
+        home = str(Path.home())
+        log = log.replace(home, "~").replace(home.replace("\\", "/"), "~")   # pas de nom d'utilisateur
+        system = f"{platform.system()} {platform.release()} ({platform.machine()})"
+        webbrowser.open(self._issue_url("probleme.yml", version=APP_VERSION,
+                                        journal=f"Système : {system}\n\n{log or '(aucune erreur enregistrée)'}"))
+
+    def suggest_idea(self):
+        import webbrowser
+        webbrowser.open(self._issue_url("idee.yml"))
+
     def open_processes(self):
         if self.proc_win and self.proc_win.win.winfo_exists():
             self.proc_win.win.deiconify()

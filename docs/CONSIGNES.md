@@ -10,6 +10,7 @@ Depuis ta 1.5.0, la branche `AK_Update` a reçu cinq mises à jour, de la 1.5.1 
 > - Le nouveau dépôt ne contient plus les fonds d'écran protégés (fan art). Ils sont remplacés par des fonds originaux générés par `tools/make_wallpapers.py`.
 > - **N'ajoute jamais d'image protégée au dépôt public** : tout ce qui y entre devient visible par tout le monde, même si tu l'effaces ensuite.
 > - Les mises à jour automatiques de l'application pointent maintenant vers ce dépôt (`update_repo`).
+> - Les retours des testeurs arrivent dans l'onglet **Issues**, avec les étiquettes « problème » et « idée ». L'application ouvre ces formulaires pré-remplis depuis Paramètres › À propos.
 
 ## 1. Ce qui a changé
 
