@@ -97,6 +97,8 @@ def parse(text):
             rest = t[len(v):].strip()
             if rest in ("la musique", "music", "the music"):
                 return None   # « lance la musique » : commande de lecture
+            if rest in SPECIAL or rest in ALIASES:
+                return "open", _original(text, rest), "any"
             rest, is_file = _strip(rest, FILE_WORDS)
             rest, is_folder = _strip(rest, FOLDER_WORDS)
             rest = re.sub(r"^(l |le |la |les |the |un |une |application |l application |app |logiciel |"
@@ -154,10 +156,15 @@ SPECIAL = {   # emplacements du système
     "corbeille": "shell:RecycleBinFolder", "recycle bin": "shell:RecycleBinFolder",
     "parametres": "ms-settings:", "settings": "ms-settings:", "reglages": "ms-settings:",
     "panneau de configuration": "shell:ControlPanelFolder", "control panel": "shell:ControlPanelFolder",
+    # l'Explorateur s'ouvre par Windows lui-même : ne dépend pas de la liste des applications
+    "explorateur de fichiers": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}", "explorateur": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}", "explorateur windows": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}",
+    "l explorateur": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}", "mes fichiers": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}", "file explorer": "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}",
 }
 
 
-SPECIAL_LABELS = {"ce pc": "Ce PC", "poste de travail": "Ce PC", "this pc": "This PC", "corbeille": "la corbeille",
+SPECIAL_LABELS = {"explorateur de fichiers": "l'Explorateur de fichiers", "explorateur": "l'Explorateur de fichiers",
+                  "explorateur windows": "l'Explorateur de fichiers", "l explorateur": "l'Explorateur de fichiers",
+                  "mes fichiers": "l'Explorateur de fichiers", "file explorer": "File Explorer", "ce pc": "Ce PC", "poste de travail": "Ce PC", "this pc": "This PC", "corbeille": "la corbeille",
                   "recycle bin": "the recycle bin", "parametres": "les paramètres de Windows",
                   "settings": "Windows settings", "reglages": "les réglages de Windows",
                   "panneau de configuration": "le panneau de configuration", "control panel": "the control panel"}
@@ -263,6 +270,8 @@ ALIASES = {   # façons courantes de dire le nom d'une application
     "vs code": "visual studio code", "vscode": "visual studio code", "code": "visual studio code",
     "le navigateur": "google chrome", "navigateur": "google chrome", "la calculatrice": "calculatrice",
     "calculette": "calculatrice", "explorateur": "explorateur de fichiers", "l explorateur": "explorateur de fichiers",
+    "l explorateur de fichiers": "explorateur de fichiers", "explorateur windows": "explorateur de fichiers",
+    "mes fichiers": "explorateur de fichiers", "file explorer": "explorateur de fichiers",
     "bloc note": "bloc notes", "notepad": "bloc notes", "terminal": "terminal", "invite de commande": "invite de commandes",
     "gestionnaire des taches": "gestionnaire des taches", "spotify": "spotify", "discord": "discord",
 }

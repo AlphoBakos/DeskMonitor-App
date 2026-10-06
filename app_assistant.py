@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Assistant vocal : écoute (raccourci, activation par le nom), compréhension et réponses, actions demandées."""
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -161,6 +162,7 @@ class AssistantMixin:
         found, label = None, target
         folders = actions.known_folders()
         if extra in ("folder", "any"):
+            q = q if q in actions.SPECIAL else actions.norm(actions.ALIASES.get(q, q))
             if q in actions.SPECIAL:
                 found, label = actions.SPECIAL[q], actions.SPECIAL_LABELS.get(q, target)
             elif q in folders:
@@ -197,6 +199,40 @@ class AssistantMixin:
                 return t(f"Je n'arrive pas à ouvrir {label} : {ex}", f"I can't open {label}: {ex}")
         return self._pick(t(f"J'ouvre {label}.", f"Opening {label}."), t(f"Voilà, j'ouvre {label}.", f"There you go, opening {label}."),
                           t(f"Tout de suite : {label}.", f"Right away: {label}."))
+
+    MUSIC_APPS = ("spotify", "deezer", "apple music", "amazon music", "tidal", "youtube music", "lecteur multimedia",
+                  "media player", "windows media player", "vlc media player", "groove musique", "musique")
+
+    def start_music(self):
+        """Rien ne joue : la touche Lecture relance le dernier lecteur utilisé ; sinon on ouvre une application de
+        musique installée (Spotify, Deezer…), ou YouTube Music dans le navigateur."""
+        def work():
+            try:
+                if IS_WIN:
+                    import ctypes
+                    u32 = ctypes.windll.user32
+                    u32.keybd_event(0xB3, 0, 0, 0)   # VK_MEDIA_PLAY_PAUSE
+                    u32.keybd_event(0xB3, 0, 2, 0)
+                elif IS_MAC:
+                    import subprocess
+                    subprocess.run(["osascript", "-e", 'tell application "Music" to play'], timeout=5)
+                time.sleep(2.0)
+                if macdata.now_playing():
+                    return
+            except Exception:  # noqa: BLE001
+                pass
+            self.call_soon(self._open_music_app)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _open_music_app(self):
+        items = collect_items("apps", True, self.organizer.apps)
+        names = {actions.norm(it["name"]): it for it in items}
+        for wanted in self.MUSIC_APPS:
+            hit = next((it for n, it in names.items() if n == wanted or n.startswith(wanted + " ")), None)
+            if hit is not None:
+                self.organizer.launch(hit)
+                return
+        actions.open_target("https://music.youtube.com")
 
     def _on_wake(self, command):
         name = self.cfg["user_name"].strip()
@@ -262,7 +298,9 @@ class AssistantMixin:
         if todo:
             return self._do_action(todo, run=act)
         words = actions.norm(text).split()
-        if ({"libere", "liberer", "vide", "vider", "free", "clear"} & set(words)) and ({"memoire", "ram", "memory"} & set(words)):
+        verbs = {"libere", "liberer", "liberez", "vide", "vider", "videz", "nettoie", "nettoyer", "nettoyez", "optimise",
+                 "optimiser", "optimisez", "purge", "free", "clear", "clean"}
+        if (verbs & set(words)) and ({"memoire", "ram", "rem", "memory"} & set(words)):
             if not IS_WIN:
                 return t("Sur Mac, la mémoire est gérée par macOS : je ne peux pas la libérer moi-même.",
                          "On a Mac, macOS manages memory itself: I can't free it for you.")
@@ -296,6 +334,11 @@ class AssistantMixin:
             return t("J'optimise le système : cache, mémoire et réseau.", "Optimizing the system: cache, memory and network.")
         if intent.startswith("music_"):
             playing = slow.get("music") or (macdata.now_playing() if act else None)
+            if not playing and intent == "music_play":   # rien ne joue : on lance la musique
+                if act:
+                    self.start_music()
+                return self._pick(t("Je lance la musique.", "Starting the music."),
+                                  t("C'est parti pour la musique.", "Here comes the music."))
             if not playing:
                 return t("Aucune musique en cours.", "Nothing is playing.")
             cmd = {"music_next": "next track", "music_prev": "previous track"}.get(intent, "playpause")

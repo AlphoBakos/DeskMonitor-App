@@ -19,15 +19,18 @@ def _norm(text):
 
 # (intention, mots-clés) : le premier qui correspond gagne, d'où l'ordre
 INTENTS = [
-    ("hide", ["masque", "cache les widgets", "cache les cartes", "hide"]),
-    ("show", ["affiche les", "montre les", "show the widgets", "show widgets"]),
-    ("tidy", [" range ", " range-", " organise ", " tidy", " organize", " arrange "]),
-    ("clean", ["nettoie", "vide le cache", "clean", "clear the cache"]),
+    ("hide", ["masque", "cache les widgets", "cache les cartes", "cacher les", "cachez les", "hide"]),
+    ("show", ["affiche les", "afficher les", "affichez les", "montre les", "montrer les", "montrez les",
+              "show the widgets", "show widgets"]),
+    ("tidy", [" range ", " range-", " ranger ", " rangez ", " organise", " tidy", " organize", " arrange "]),
+    ("clean", ["nettoie", "nettoy", "vide le cache", "vider le cache", "videz le cache", "fichiers temporaires",
+               "clean", "clear the cache"]),
     ("boost", ["optimise", "accelere", "boost", "speed up"]),
     ("music_next", ["suivant", "chanson suivante", "next song", "next track", "skip"]),
     ("music_prev", ["precedent", "previous"]),
     ("music_pause", ["pause", "arrete la musique", "coupe la musique", "stop the music"]),
-    ("music_play", ["joue", "reprends", "relance la musique", "play", "resume"]),
+    ("music_play", ["joue", "reprends", "relance la musique", "musique", "chanson", "morceau", "play", "resume",
+                    "music", "song"]),
     ("stop", ["tais-toi", "tais toi", "silence", " chut", "arrete de parler", "shut up", "be quiet", " stop "]),
     ("processes", ["qui consomme", "ralentit", "gourmand", "processus", "slowing", "what's using", "processes"]),
     ("battery", ["batterie", "battery"]),
@@ -100,6 +103,41 @@ COMMAND_PHRASES = {
     ],
 }
 
+def _forms(inf, tu, vous):
+    """Les façons de demander une action : « nettoie », « nettoyez », « nettoyer », « peux-tu nettoyer »…"""
+    return [tu, vous, inf, f"peux-tu {inf}", f"tu peux {inf}", f"pouvez-vous {inf}", f"je veux {inf}"]
+
+
+_GENERATED_FR = [
+    (_forms("nettoyer", "nettoie", "nettoyez") + _forms("libérer", "libère", "libérez") + _forms("vider", "vide", "videz")
+     + _forms("optimiser", "optimise", "optimisez"), ["la RAM", "la mémoire", "la mémoire vive"]),
+    (_forms("nettoyer", "nettoie", "nettoyez") + _forms("vider", "vide", "videz") + _forms("supprimer", "supprime", "supprimez"),
+     ["le cache", "les fichiers temporaires"]),
+    (_forms("nettoyer", "nettoie", "nettoyez") + _forms("optimiser", "optimise", "optimisez")
+     + _forms("accélérer", "accélère", "accélérez"), ["l'ordinateur", "le PC", "le système"]),
+    (_forms("vider", "vide", "videz") + _forms("nettoyer", "nettoie", "nettoyez"), ["le cache DNS", "le DNS"]),
+    (_forms("jouer", "joue", "jouez") + _forms("mettre", "mets", "mettez") + _forms("lancer", "lance", "lancez")
+     + _forms("ouvrir", "ouvre", "ouvrez") + _forms("écouter", "écoute", "écoutez"),
+     ["de la musique", "la musique", "une chanson", "un morceau", "ma musique"]),
+    (_forms("ranger", "range", "rangez") + _forms("organiser", "organise", "organisez"),
+     ["le bureau", "les widgets", "mes applications"]),
+    (_forms("masquer", "masque", "masquez") + _forms("cacher", "cache", "cachez") + _forms("afficher", "affiche", "affichez")
+     + _forms("montrer", "montre", "montrez"), ["les widgets", "les cartes"]),
+]
+
+
+def _generated(lang):
+    if lang != "fr":
+        return []
+    return [f"{v} {o}" for verbs, objects in _GENERATED_FR for v in verbs for o in objects]
+
+
+def _is_free_text(text):
+    """Commande reconnue avec une partie dictée (recherche, nom de fichier)."""
+    t = _norm(text)
+    return any(w in t for w in (" cherche", " recherche", " fichier ", " document "))
+
+
 # Mots trop courants pour servir de variante du nom de l'assistant : appris par erreur, ils réveilleraient
 # l'assistant à chaque phrase (« on », « et », « demain »…)
 STOPWORDS = set("""
@@ -148,7 +186,8 @@ def clean_aliases(aliases, name=""):
 
 
 def command_phrases(lang):
-    return COMMAND_PHRASES.get(lang, COMMAND_PHRASES["fr"])
+    base = COMMAND_PHRASES.get(lang, COMMAND_PHRASES["fr"])
+    return list(dict.fromkeys(base + _generated(lang)))
 
 
 def _ps_quote(text):
@@ -185,8 +224,8 @@ ACT_VERBS = {
     "fr": {"open": ["ouvre", "lance", "démarre", "ouvre-moi", "lance-moi", "peux-tu ouvrir", "peux-tu lancer",
                     "tu peux ouvrir", "tu peux lancer", "ouvrir", "lancer"],
            "search": ["cherche", "recherche", "cherche-moi", "fais une recherche sur", "cherche sur internet",
-                      "recherche sur internet", "cherche sur Google", "google"],
-           "folder": ["le dossier", "mes", "mon", "le", "la", "les"],
+                      "recherche sur internet", "cherche sur Google", "recherche sur Google"],
+           "folder": ["le dossier", "mes", "mon", "le", "la", "les", "l'"],
            "file": ["le fichier", "le document"]},
     "en": {"open": ["open", "launch", "start", "can you open", "please open"],
            "search": ["search for", "search", "look up", "google"],
@@ -218,8 +257,13 @@ def act_grammar_ps(lang, vocab, sfx=""):
     s = (choices("ov", v["open"]) + choices("sv", v["search"]) + choices("fv", v["file"])
          + choices("dv", v["folder"]) + "$acts{sfx} = New-Object System.Speech.Recognition.Choices;")
     if apps:
-        s += (choices("ap", apps) + "$g1{sfx} = New-Object System.Speech.Recognition.GrammarBuilder; $g1{sfx}.Culture = $culture;"
-              "$g1{sfx}.Append($ov{sfx}); $g1{sfx}.Append($ap{sfx}); $acts{sfx}.Add($g1{sfx});")
+        # « ouvre l'Explorateur de fichiers », « lance le Bloc-notes » : formes avec article proposées aussi
+        vowels = tuple("aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ")
+        with_art = apps + [("l'" + a) for a in apps if a.startswith(vowels)][:120]
+        s += (choices("ap", with_art) + choices("ar", ["le", "la", "les", "mon", "ma", "mes"])
+              + "$g1{sfx} = New-Object System.Speech.Recognition.GrammarBuilder; $g1{sfx}.Culture = $culture;"
+              "$g1{sfx}.Append($ov{sfx}); $g1{sfx}.Append($ar{sfx}, 0, 1); $g1{sfx}.Append($ap{sfx});"
+              "$acts{sfx}.Add($g1{sfx});")
     if places:
         s += (choices("pl", places) + "$g2{sfx} = New-Object System.Speech.Recognition.GrammarBuilder; $g2{sfx}.Culture = $culture;"
               "$g2{sfx}.Append($ov{sfx}); $g2{sfx}.Append($dv{sfx}, 0, 1); $g2{sfx}.Append($pl{sfx}); $acts{sfx}.Add($g2{sfx});")
@@ -707,8 +751,9 @@ class WakeListener:
                 self.log("commande non reconnue (hors des phrases connues)")
                 self.on_wake("…")
             return
+        free = grammar == "act" and _is_free_text(text)
         if grammar in ("commands", "act"):
-            if armed and conf >= 0.3:
+            if armed and conf >= (0.5 if free else 0.3):
                 self.armed_until = 0
                 self.log(f"commande : {text} ({conf:.2f})")
                 self.on_wake(text)

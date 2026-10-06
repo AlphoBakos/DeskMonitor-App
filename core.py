@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.1"
+APP_VERSION = "1.9.2"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME

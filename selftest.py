@@ -202,7 +202,10 @@ def selftest(DeskWidget):
 
         def actions_test():
             cases = {"ouvre le dossier téléchargements": "Téléchargements", "cherche recette de crêpes": "crêpes",
-                     "ouvre la corbeille": "corbeille", "libère la mémoire": "mémoire"}
+                     "ouvre la corbeille": "corbeille", "libère la mémoire": "mémoire",
+                     # langage courant (retours d'utilisation)
+                     "nettoie la RAM": "mémoire", "joue de la musique": "musique",
+                     "ouvre l'explorateur de fichiers": "Explorateur", "ranger le bureau": "rang"}
             bad = {q: r for q, r in ((q, app.answer(q, act=False)) for q in cases) if cases[q].lower() not in r.lower()}
             if bad:
                 raise AssertionError(f"réponses inattendues : {bad}")
@@ -272,8 +275,11 @@ def selftest(DeskWidget):
                     full = app.wake._win_script("fr", "Jarvis", ())
                     script = full[:full.index("$parent =")].replace(
                         "$r.SetInputToDefaultAudioDevice();", f"$r.SetInputToWaveFile({assistant._ps_quote(path)});") +                         "$res = $r.Recognize(); if ($res) { [Console]::Out.WriteLine($res.Grammar.Name + \"`t\" + $res.Text) }"
-                    out = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True,
-                                         timeout=60, creationflags=no_window_flags()).stdout.decode("utf-8", "ignore")
+                    ps1 = tmp / "reconnaissance.ps1"   # par un fichier, comme l'application (script trop long
+                    ps1.write_text(script, encoding="utf-8-sig")   # pour une ligne de commande)
+                    out = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1)],
+                                         capture_output=True, timeout=60,
+                                         creationflags=no_window_flags()).stdout.decode("utf-8", "ignore")
                     grammar, _, text = out.strip().partition("	")
                     ok = (grammar == "wake") if want == "wake" else assistant.parse(text) == want
                     if not ok:
