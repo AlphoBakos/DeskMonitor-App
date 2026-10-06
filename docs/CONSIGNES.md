@@ -22,6 +22,26 @@ Depuis ta 1.5.0, la branche `AK_Update` a reçu cinq mises à jour, de la 1.5.1 
 | 1.7.0 | Animations et interactions : nouveau module `anim.py`. |
 | 1.8.0 | L'assistant agit (ouvre des applications, dossiers et fichiers, fait des recherches) : nouveau module `actions.py`. Boutons d'action sur les cartes, voix neuronales, correction du fond vivant. |
 
+## Où se trouve quoi (depuis le découpage de `desk_monitor.py`)
+
+`desk_monitor.py` est passé de 3 000 à environ 1 300 lignes. La classe `DeskWidget` hérite des blocs déplacés : on appelle toujours `app.speak()`, `app.answer()`, etc., comme avant.
+
+| Fichier | Contenu |
+|---|---|
+| `desk_monitor.py` | `DeskWidget` : construction des widgets, mesures, positions, boucles, menu ; démarrage (`main`). |
+| `app_voice.py` | Voix : synthèse, récapitulatif parlé, annonces de ce qui passe dans le rouge. |
+| `app_assistant.py` | Assistant : écoute, compréhension (`answer`), actions demandées (`_do_action`). |
+| `app_wallpaper.py` | Fonds d'écran, écran de verrouillage, fond assorti, fond vivant. |
+| `app_updates.py` | Mises à jour depuis GitHub. |
+| `app_alerts.py` | Alertes et notifications. |
+| `app_actions.py` | Actions d'entretien (cache, RAM, DNS…) et formulaires de retour GitHub. |
+| `optimizer.py` | `Optimizer` : le nettoyage et l'optimisation proprement dits. |
+| `process_window.py` | Fenêtre des processus gourmands. |
+| `selftest.py` | Autotests (`--selftest`, `--wake-test`, `--speech-test`). |
+
+- Pour une nouvelle méthode, choisis le module de son thème. Si un module importe un nom qui lui manque, `python -m pyflakes *.py` le signale.
+- `tools/prune_imports.py` retire les imports devenus inutiles.
+
 ## 2. Règles à respecter
 
 ### Apparence : une seule palette
