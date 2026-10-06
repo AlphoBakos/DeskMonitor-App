@@ -21,7 +21,7 @@ import profiles as prof
 import wallpapers
 from core import (IS_MAC, ALIGNS, APP_NAME, APP_VERSION, CONFIG_DIR, DATE_CASES, DATE_FORMATS, DEFAULTS, IS_WIN,
                   UI_FONT, NUM_FONT, TEXT_FONT, ensure_visible, open_path,
-                  SHOW_ITEMS, blend, format_date, is_admin, is_autostart, make_icon_image,
+                  SHOW_ITEMS, blend, format_date, is_admin, is_autostart, is_packaged, make_icon_image,
                   set_autostart)
 
 # palette de la fenêtre (indépendante du thème des widgets pour rester toujours lisible)
@@ -927,13 +927,16 @@ class SettingsWindow:
                 T("clean_browsers", "Inclure les caches des navigateurs", "Chrome, Edge, Firefox, Brave…"),
                 T("clean_recycle", "Vider aussi la corbeille"),
                 B("Mode administrateur", "Actif ✔" if admin else "Inactif : certains fichiers système sont ignorés",
-                  "Relancer en admin", self.app.relaunch_admin, cond=IS_WIN and not admin),
+                  "Relancer en admin", self.app.relaunch_admin, cond=IS_WIN and not admin and not is_packaged()),
             ]),
             ("Mises à jour", [
                 TXT("update_repo", "Dépôt GitHub", "Où sont publiées les nouvelles versions (utilisateur/projet)",
-                    width=28),
-                T("update_auto", "Vérifier automatiquement", "Au démarrage puis une fois par jour"),
-                B("Version installée", f"DeskMonitor {APP_VERSION}", "Vérifier maintenant",
+                    width=28, cond=not is_packaged()),
+                T("update_auto", "Vérifier automatiquement", "Au démarrage puis une fois par jour",
+                  cond=not is_packaged()),
+                B("Version installée", f"DeskMonitor {APP_VERSION}" + (" · mises à jour par le Microsoft Store"
+                                                                      if is_packaged() else ""),
+                  "Ouvrir le Store" if is_packaged() else "Vérifier maintenant",
                   lambda: self.app.check_updates(True), primary=True),
             ]),
             ("Réglages", [

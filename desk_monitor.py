@@ -67,6 +67,7 @@ from core import (
     is_admin,
     launch_command,
     is_autostart,
+    is_packaged,
     set_autostart,
     apply_corners,
     bring_to_front,
@@ -165,7 +166,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.tray.start()
         if IS_MAC:
             self._setup_mac()
-        self.root.after(20000, self._update_loop)
+        if not is_packaged():   # version Microsoft Store : c'est le Store qui met à jour
+            self.root.after(20000, self._update_loop)
         self._slide_time = time.time()
         self.root.after(15000, self._wallpaper_timers)
         self._last_health, self._last_bounds = time.time(), self._screen_bounds()

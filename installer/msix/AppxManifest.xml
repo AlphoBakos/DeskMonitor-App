@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manifeste du paquet Microsoft Store (MSIX). Les valeurs {…} sont remplies par tools/build_msix.py :
+     l'identité (Name, Publisher) vient de installer/msix/identity.json, à recopier depuis Partner Center. -->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop desktop6 rescap">
+
+  <Identity Name="{NAME}" Publisher="{PUBLISHER}" Version="{VERSION}" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>DeskMonitor</DisplayName>
+    <PublisherDisplayName>{PUBLISHER_DISPLAY}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <!-- DeskMonitor règle des paramètres de Windows (fond d'écran, horloge 24 h…) et garde sa configuration dans
+         %APPDATA%\DeskMonitor : ces écritures doivent atteindre le vrai registre et les vrais dossiers. -->
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="fr-FR" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="DeskMonitor" Executable="DeskMonitor.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="DeskMonitor"
+        Description="Widgets de bureau : monitoring, applications rangées et assistant vocal"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- Lancement à l'ouverture de session : désactivé par défaut, activé par l'utilisateur dans les paramètres -->
+        <desktop:Extension Category="windows.startupTask" Executable="DeskMonitor.exe"
+                           EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="DeskMonitorStartup" Enabled="false" DisplayName="DeskMonitor" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+    <DeviceCapability Name="microphone" />
+  </Capabilities>
+</Package>

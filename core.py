@@ -577,6 +577,35 @@ def launch_command():
     return str(pyw if pyw.exists() else exe), f'"{script}"'
 
 
+# ----- Version Microsoft Store (paquet MSIX) ------------------------------- #
+_PACKAGED = None
+
+
+def is_packaged():
+    """Vrai si l'application tourne en version Microsoft Store (paquet MSIX). Le Store gère alors les mises à
+    jour, et le lancement au démarrage passe par la « tâche de démarrage » déclarée dans le paquet."""
+    global _PACKAGED
+    if _PACKAGED is None:
+        _PACKAGED = False
+        if IS_WIN:
+            try:
+                n = ctypes.c_uint32(0)
+                # 15700 = APPMODEL_ERROR_NO_PACKAGE : application classique (installateur .exe)
+                _PACKAGED = ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(n), None) != 15700
+            except (AttributeError, OSError):
+                _PACKAGED = False
+    return _PACKAGED
+
+
+STARTUP_TASK_ID = "DeskMonitorStartup"   # identique à AppxManifest.xml
+
+
+def _startup_task():
+    import asyncio
+    from winsdk.windows.applicationmodel import StartupTask
+    return asyncio.run(StartupTask.get_async(STARTUP_TASK_ID))
+
+
 # ----- Démarrage automatique ------------------------------------------------ #
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 MAC_AGENT = Path.home() / "Library" / "LaunchAgents" / "com.deskmonitor.app.plist"
@@ -587,6 +616,12 @@ def is_autostart():
         return MAC_AGENT.exists()
     if not IS_WIN:
         return False
+    if is_packaged():
+        try:
+            from winsdk.windows.applicationmodel import StartupTaskState
+            return _startup_task().state in (StartupTaskState.ENABLED, StartupTaskState.ENABLED_BY_POLICY)
+        except Exception:  # noqa: BLE001
+            return False
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
             winreg.QueryValueEx(k, APP_NAME)
@@ -609,6 +644,18 @@ def set_autostart(enabled):
             MAC_AGENT.unlink(missing_ok=True)
         return
     if not IS_WIN:
+        return
+    if is_packaged():   # version Store : tâche de démarrage du paquet (le registre n'est pas utilisable)
+        import asyncio
+        task = _startup_task()
+        if enabled:
+            state = asyncio.run(task.request_enable_async())
+            from winsdk.windows.applicationmodel import StartupTaskState
+            if state == StartupTaskState.DISABLED_BY_USER:
+                raise OSError("Le lancement au démarrage a été désactivé dans le Gestionnaire des tâches "
+                              "(onglet Démarrage) : réactivez-le là-bas.")
+        else:
+            task.disable()
         return
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if enabled:

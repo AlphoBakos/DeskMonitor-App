@@ -8,6 +8,8 @@ from tkinter import messagebox
 import updater
 
 from core import (
+    is_packaged,
+    open_path,
     APP_NAME,
     APP_VERSION,
 )
@@ -21,6 +23,10 @@ class UpdateMixin:
         self.root.after(24 * 3600 * 1000, self._update_loop)
 
     def check_updates(self, manual=False):
+        if is_packaged():   # version Microsoft Store : les mises à jour passent par le Store
+            if manual:
+                open_path("ms-windows-store://downloadsandupdates")
+            return
         repo = self.cfg["update_repo"].strip()
         if not repo:
             if manual:
