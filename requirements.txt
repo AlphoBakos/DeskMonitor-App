@@ -1,0 +1,10 @@
+psutil>=5.9
+pillow>=9.0
+certifi
+pystray>=0.19
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+pyobjc-framework-EventKit; sys_platform == "darwin"
+pyobjc-framework-Speech; sys_platform == "darwin"
+pyobjc-framework-AVFoundation; sys_platform == "darwin"
+winsdk; sys_platform == "win32"
+edge-tts

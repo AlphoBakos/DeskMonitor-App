@@ -1,0 +1,49 @@
+# Construit l'installateur macOS (.dmg) sur les Mac de GitHub, pour Apple Silicon et Intel.
+# Lancement : onglet « Actions » > « Installateur macOS » > « Run workflow »,
+# ou automatiquement à chaque version publiée (publier_version.bat) : les .dmg y sont ajoutés.
+name: Installateur macOS
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14        # Apple Silicon (M1, M2, M3…)
+          - runner: macos-15-intel  # Mac Intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Construire le .dmg
+        run: bash build_mac.sh
+      - name: Autotest de l'application sur macOS
+        run: |
+          export DM_SELFTEST_OUT="$RUNNER_TEMP/selftest.txt"
+          build/dist/DeskMonitor.app/Contents/MacOS/DeskMonitor --selftest &
+          PID=$!
+          for i in $(seq 1 120); do kill -0 $PID 2>/dev/null || break; sleep 1; done
+          kill $PID 2>/dev/null || true
+          wait $PID || true
+          echo "===== Rapport ====="
+          cat "$DM_SELFTEST_OUT" || { echo "Aucun rapport : l'application n'a pas démarré"; exit 1; }
+          grep -q "Aucune erreur" "$DM_SELFTEST_OUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeskMonitor-mac-${{ matrix.runner }}
+          path: Installateur/*.dmg
+      - name: Joindre à la version publiée
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Installateur/*.dmg

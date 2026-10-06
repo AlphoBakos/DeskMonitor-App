@@ -1,0 +1,31 @@
+# Autotest de DeskMonitor sous Windows, à chaque envoi et à chaque pull request :
+# une erreur est vue tout de suite, avant d'arriver chez les utilisateurs.
+name: Autotest Windows
+
+on:
+  push:
+    branches: [main, AK_Update]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dépendances
+        run: python -m pip install --quiet psutil pillow pystray certifi winsdk edge-tts
+      - name: Autotest
+        shell: pwsh
+        run: |
+          $env:DM_SELFTEST_OUT = "$env:RUNNER_TEMP\selftest.txt"
+          $p = Start-Process python -ArgumentList "-X", "utf8", "desk_monitor.py", "--selftest" -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill() }
+          Write-Host "===== Rapport ====="
+          if (-not (Test-Path $env:DM_SELFTEST_OUT)) { Write-Host "Aucun rapport : l'application n'a pas démarré"; exit 1 }
+          Get-Content $env:DM_SELFTEST_OUT -Encoding utf8
+          if (-not (Select-String -Path $env:DM_SELFTEST_OUT -Pattern "Aucune erreur" -Quiet)) { exit 1 }

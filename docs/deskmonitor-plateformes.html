@@ -1,0 +1,268 @@
+<title>DeskMonitor 1.5 par plateforme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : un relevé d'instrument. Synthèse chiffrée en tête, puis une table par domaine (macOS | Windows). */
+:root {
+  --bg: #F4F6F9;        /* papier froid */
+  --panel: #FFFFFF;
+  --ink: #14171C;       /* encre */
+  --muted: #5C6573;     /* graphite */
+  --line: #DCE1E8;
+  --accent: #2F6FED;
+  --ok: #1E8E4E;  --ok-bg: #E3F4EA;
+  --todo: #A15C00; --todo-bg: #FCEFD9;
+  --part: #2F6FED; --part-bg: #E5EDFD;
+  --no: #6B7380;  --no-bg: #ECEFF3;
+  --display: "Barlow Semi Condensed", "DIN Alternate", "Bahnschrift", "Arial Narrow", sans-serif;
+  --body: "Figtree", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101317; --panel: #171B21; --ink: #EEF1F5; --muted: #9AA3B0; --line: #272D36; --accent: #6B9BFF;
+    --ok: #5FD38D; --ok-bg: #16301F; --todo: #F2B45A; --todo-bg: #33270F;
+    --part: #8FB2FF; --part-bg: #1B2740; --no: #8A93A0; --no-bg: #20252D; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101317; --panel: #171B21; --ink: #EEF1F5; --muted: #9AA3B0; --line: #272D36; --accent: #6B9BFF;
+  --ok: #5FD38D; --ok-bg: #16301F; --todo: #F2B45A; --todo-bg: #33270F;
+  --part: #8FB2FF; --part-bg: #1B2740; --no: #8A93A0; --no-bg: #20252D; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 64px; display: grid; gap: 36px; }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.02; letter-spacing: -0.01em; }
+h2 { font-size: 26px; }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--muted); font-size: 17px; margin-top: 10px; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 14px; font-variant-numeric: tabular-nums; }
+
+.notice { border-left: 3px solid var(--todo); background: var(--todo-bg); padding: 14px 16px; border-radius: 4px; }
+.notice strong { color: var(--todo); }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.plat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+.plat h3 { margin: 0; font: 600 20px var(--display); display: flex; justify-content: space-between; align-items: baseline; }
+.plat h3 span { font: 500 13px var(--body); color: var(--muted); }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--no-bg); }
+.bar i { display: block; height: 100%; }
+.counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.counts div { display: grid; gap: 2px; }
+.counts b { font: 600 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+.counts small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; color: var(--muted); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filters button {
+  font: 500 13px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+section.cat { display: grid; gap: 12px; }
+.cat-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cat-head p { color: var(--muted); font-size: 14px; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 12px var(--body); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; background: var(--bg); }
+td.feat { font-weight: 600; width: 30%; }
+td.cell { width: 35%; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--body); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ok   { color: var(--ok);   background: var(--ok-bg); }
+.todo { color: var(--todo); background: var(--todo-bg); }
+.part { color: var(--part); background: var(--part-bg); }
+.no   { color: var(--no);   background: var(--no-bg); }
+.note { display: block; color: var(--muted); font-size: 13px; margin-top: 5px; }
+tr[hidden] { display: none; }
+
+.later { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.later div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.later b { font-weight: 600; }
+.later span { color: var(--muted); font-size: 13px; }
+
+.dist { display: grid; gap: 8px; }
+.dist li { margin-left: 18px; }
+@media (prefers-reduced-motion: no-preference) { .bar i { transition: width .4s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>DeskMonitor 1.5 par plateforme</h1>
+    <p class="lede">Toutes les fonctionnalités de l'application, avec leur état réel sur macOS et sur Windows : vérifiées, à confirmer, partielles ou absentes.</p>
+    <p class="meta">État au 2 octobre 2026. Version 1.5.0, testée sur un Mac Apple Silicon.</p>
+  </header>
+
+  <div class="notice">
+    <strong>Windows : aucune version 1.5 n'a encore été construite ni testée.</strong>
+    Le code est prêt et partagé avec macOS, mais l'installateur doit être produit sur un PC avec <code>build.bat</code>. Tout ce qui est marqué « à confirmer » côté Windows doit être essayé sur un vrai PC.
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="legend">
+    <span><i class="pill ok">Vérifiée</i> testée sur ce Mac ou existante et en service</span>
+    <span><i class="pill part">Partielle</i> fonctionne, avec une limite connue</span>
+    <span><i class="pill todo">À confirmer</i> écrite, pas encore essayée en conditions réelles</span>
+    <span><i class="pill no">Absente</i> non disponible sur cette plateforme</span>
+  </div>
+
+  <div class="filters" role="group" aria-label="Filtrer les lignes">
+    <button type="button" id="f-all" data-f="all" aria-pressed="true">Tout</button>
+    <button type="button" id="f-diff" data-f="diff" aria-pressed="false">Différences entre plateformes</button>
+    <button type="button" id="f-todo" data-f="todo" aria-pressed="false">À confirmer</button>
+    <button type="button" id="f-mac" data-f="mac" aria-pressed="false">Mac uniquement</button>
+    <button type="button" id="f-win" data-f="win" aria-pressed="false">Windows uniquement</button>
+  </div>
+
+  <div id="cats"></div>
+
+  <section class="cat">
+    <div class="cat-head"><h2>Pas encore fait</h2><p>Discuté ensemble, en attente d'une décision ou d'un accès.</p></div>
+    <div class="later">
+      <div><b>Synthèse des mails Gmail</b><span>Version prudente proposée : métadonnées seules, jeton dans le Trousseau, sans IA.</span></div>
+      <div><b>Messages WhatsApp</b><span>Lecture locale non officielle, Mac uniquement, accès complet au disque requis.</span></div>
+      <div><b>Température du processeur et ventilateurs</b><span>Demande les droits administrateur ou une bibliothèque tierce.</span></div>
+      <div><b>Voix plus humaine</b><span>ElevenLabs (payant, en ligne) ou Piper (gratuit, hors ligne, plus lourd).</span></div>
+      <div><b>Tâches dans les applications, à la voix</b><span>Ouvrir et piloter les applications de l'ordinateur par commande vocale : lancer une app, créer un rappel ou un événement, écrire un message, régler le volume, verrouiller l'écran… AppleScript et Raccourcis sur Mac, PowerShell sous Windows. Confirmation à voix haute avant toute action sensible.</span></div>
+      <div><b>Réponses depuis Internet</b><span>Poser n'importe quelle question à voix haute : l'assistant cherche sur le Web et lit une réponse courte. Demande une connexion et un service de recherche ou un modèle d'IA (clé API, possiblement payant) ; les questions quittent alors l'ordinateur.</span></div>
+      <div><b>Profils selon le mode Focus</b><span>macOS ne donne pas cet état de façon fiable.</span></div>
+      <div><b>Disposition « bento » et pochette d'album</b><span>Idées proposées, non réalisées.</span></div>
+      <div><b>Signature Apple Developer</b><span>Sans elle, macOS redemande micro et reconnaissance vocale à chaque nouvelle version (99 $ par an).</span></div>
+    </div>
+  </section>
+
+  <section class="cat">
+    <div class="cat-head"><h2>Installation</h2></div>
+    <ul class="dist">
+      <li><b>macOS Apple Silicon :</b> le fichier <code>DeskMonitor-1.5.0-mac-arm64.dmg</code>, construit et testé sur ce Mac (30 étapes d'autotest, aucune erreur).</li>
+      <li><b>macOS Intel :</b> produit par GitHub Actions (workflow « Installateur macOS »), non lancé pour la 1.5.</li>
+      <li><b>Windows 10 et 11 :</b> <code>build.bat</code> sur un PC, puis <code>publier_version.bat</code> pour la mise à jour automatique.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const S = { ok: "Vérifiée", part: "Partielle", todo: "À confirmer", no: "Absente" };
+// [domaine, fonctionnalité, [statut Mac, note], [statut Windows, note]]
+const ROWS = [
+  ["Widgets et apparence", "Colonne classique (widget d'origine)", ["ok", "Contrôlée par l'autotest"], ["ok", "En service depuis la 1.4"]],
+  ["Widgets et apparence", "Cartes façon widgets", ["ok", "11 cartes"], ["ok", "11 cartes, vérifiées à l'écran (musique : winsdk, inclus dans l'installateur)"]],
+  ["Widgets et apparence", "Design « Cadran » : jauges graduées, chiffres d'instrument", ["ok", "Aperçus capturés et vérifiés, thèmes clair et sombre"], ["ok", "Police Bahnschrift, thèmes clair et sombre vérifiés à l'écran"]],
+  ["Widgets et apparence", "Flou natif derrière les cartes", ["part", "Appliqué sans erreur, rendu final non confirmé à l'écran"], ["ok", "Verre acrylique teinté, vérifié : le texte des fenêtres derrière n'est plus lisible"]],
+  ["Widgets et apparence", "Thème clair ou sombre et couleur d'accent du système", ["ok", ""], ["ok", "Lus dans le registre Windows, vérifiés"]],
+  ["Widgets et apparence", "Cartes empilées en colonnes, choix du coin", ["ok", "2 colonnes par défaut, bande suivante si l'écran est plein"], ["ok", "Contrôlées par l'autotest"]],
+  ["Widgets et apparence", "Anti-chevauchement et glisser-déposer aligné", ["ok", "Contrôlés par l'autotest"], ["ok", "Contrôlés par l'autotest"]],
+  ["Widgets et apparence", "Taille du texte, cases vides comblées", ["ok", ""], ["ok", "Contrôlées par l'autotest"]],
+  ["Widgets et apparence", "Mise à l'échelle de l'affichage", ["ok", "Écrans Retina"], ["ok", "Vérifiée sur un écran à 125 % (grille et écran d'accueil corrigés)"]],
+  ["Widgets et apparence", "Visible sur tous les bureaux, ou sous les fenêtres", ["part", "Options présentes, effet non vérifié à l'écran"], ["part", "Sous les fenêtres : oui ; bureaux virtuels : non vérifié"]],
+  ["Widgets et apparence", "Fenêtre de réglages redessinée", ["ok", ""], ["ok", "Toutes les pages ouvertes par l'autotest"]],
+  ["Widgets et apparence", "Bureau organisé (panneaux d'applications)", ["ok", "Existant"], ["ok", "Existant"]],
+
+  ["Cartes et données", "Heure et date avec trotteuse", ["ok", ""], ["ok", ""]],
+  ["Cartes et données", "Processeur et mémoire", ["ok", ""], ["ok", ""]],
+  ["Cartes et données", "Stockage", ["ok", "Volume de données, sans les volumes système"], ["ok", "Disque système C:"]],
+  ["Cartes et données", "Réseau et ping", ["ok", ""], ["ok", ""]],
+  ["Cartes et données", "Batterie", ["ok", "Santé, cycles, watts, état thermique"], ["ok", "Santé et puissance ; cycles seulement si le pilote les fournit"]],
+  ["Cartes et données", "Météo", ["ok", "Open-Meteo, ville choisie ou position par adresse IP"], ["ok", "Vérifiée à l'écran"]],
+  ["Cartes et données", "Processus gourmands, bouton pour quitter", ["ok", ""], ["ok", "Processus système de Windows exclus (corrigé)"]],
+  ["Cartes et données", "Note rapide", ["ok", ""], ["part", "Affichée ; saisie non essayée"]],
+  ["Cartes et données", "Presse-papiers récent", ["ok", "Gardé en mémoire seulement"], ["ok", "Vérifié à l'écran"]],
+  ["Cartes et données", "Musique en cours et commandes", ["todo", "Apple Music et Spotify, pas essayé avec un vrai morceau"], ["todo", "Session multimédia de Windows, pas essayée avec un vrai morceau"]],
+  ["Cartes et données", "Agenda", ["todo", "Calendrier de macOS (autorisation) ou lien ICS"], ["todo", "Lien ICS seulement"]],
+  ["Cartes et données", "Rappels à faire", ["todo", "Rappels de macOS"], ["no", "Windows n'offre pas d'accès local aux rappels"]],
+
+  ["Système", "Infos dans la barre des menus", ["ok", "CPU, RAM et débit"], ["ok", "CPU, RAM et débit dans l'infobulle de l'icône de notification"]],
+  ["Système", "Raccourci pour afficher ou masquer", ["ok", "⌥⌘D"], ["ok", "Ctrl+Alt+D vérifié"]],
+  ["Système", "Alertes (processeur, mémoire, disque, batterie, connexion)", ["ok", ""], ["ok", "Existant"]],
+  ["Système", "Notifications du système", ["todo", "Centre de notifications macOS"], ["part", "Notifications Windows par l'icône de notification, non vérifiées à l'écran"]],
+  ["Système", "Démarrage automatique", ["todo", "Activé au premier lancement, pas vérifié après un redémarrage"], ["ok", "Existant"]],
+  ["Système", "Mises à jour par GitHub", ["part", "Télécharge et ouvre le .dmg, l'app se glisse à la main"], ["ok", "Installation silencieuse"]],
+  ["Système", "Profils et profils automatiques (batterie, nuit)", ["ok", "Logique contrôlée par l'autotest"], ["ok", "Logique contrôlée par l'autotest"]],
+  ["Système", "Fond d'écran vivant (heure, état, jauges)", ["part", "Image générée et vérifiée, application au bureau non confirmée"], ["part", "Image générée et vérifiée, application au bureau non confirmée"]],
+  ["Système", "Collection et diaporama de fonds d'écran", ["ok", "Existant"], ["ok", "Existant"]],
+  ["Système", "Nettoyage du cache et de la corbeille", ["ok", "Existant"], ["ok", "Existant"]],
+  ["Système", "Écran de verrouillage personnalisé", ["no", ""], ["ok", "Existant"]],
+  ["Système", "Libérer la RAM, vider le DNS, plans d'alimentation", ["no", ""], ["ok", "Existant"]],
+
+  ["Voix et assistant", "Accueil au premier lancement (prénom, langue, nom)", ["ok", "Passé : Doura, avec Pablo"], ["ok", "Fenêtre adaptée au zoom de l'écran (corrigé)"]],
+  ["Voix et assistant", "Récapitulatif parlé au lancement", ["ok", "Texte et synthèse vérifiés"], ["ok", "Voix naturelle de Windows (Julie)"]],
+  ["Voix et assistant", "Annonce des valeurs qui passent dans le rouge", ["ok", "Testée avec des valeurs simulées"], ["ok", "Logique commune, contrôlée par l'autotest"]],
+  ["Voix et assistant", "Annonces en français ou en anglais", ["ok", "14 voix françaises et 21 anglaises installées"], ["part", "3 voix françaises naturelles ; anglais : voix classique (Zira)"]],
+  ["Voix et assistant", "Voix Siri ou Premium", ["part", "Par la voix du système, non vérifiée"], ["ok", "Voix naturelles de Windows : Julie, Paul, Hortense"]],
+  ["Voix et assistant", "Commandes vocales au raccourci", ["ok", "⌘⌥J, votre voix reconnue hors ligne"], ["ok", "Ctrl+Alt+J, en français, hors ligne : 7 phrases de test sur 7 comprises"]],
+  ["Voix et assistant", "Activation en disant le nom", ["part", "Validée avec des phrases jouées, pas encore avec votre voix"], ["part", "Validée avec des phrases de synthèse, pas encore avec votre voix"]],
+  ["Voix et assistant", "Apprentissage du nom avec votre voix", ["todo", ""], ["todo", "Disponible, à essayer avec votre voix"]],
+  ["Voix et assistant", "Tâches à la voix (cache, optimisation, musique, widgets)", ["ok", "Compréhension des phrases contrôlée"], ["ok", "Compréhension des phrases contrôlée"]],
+];
+const INTROS = {
+  "Widgets et apparence": "Ce qui s'affiche sur le bureau et comment.",
+  "Cartes et données": "Ce que chaque carte mesure ou affiche.",
+  "Système": "Intégration au système, alertes et automatismes.",
+  "Voix et assistant": "Pablo : ce qu'il dit, ce qu'il comprend, comment l'appeler.",
+};
+
+function pill(s) { return `<span class="pill ${s}">${S[s]}</span>`; }
+function esc(t) { return t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function summary() {
+  const box = document.getElementById("summary");
+  const colors = { ok: "var(--ok)", part: "var(--part)", todo: "var(--todo)", no: "var(--no)" };
+  box.innerHTML = [["macOS", 2], ["Windows", 3]].map(([name, i]) => {
+    const n = { ok: 0, part: 0, todo: 0, no: 0 };
+    ROWS.forEach(r => n[r[i][0]]++);
+    const total = ROWS.length;
+    const bar = ["ok", "part", "todo"].map(k => `<i style="width:${(n[k] / total) * 100}%;background:${colors[k]}"></i>`).join("");
+    return `<div class="plat"><h3>${name}<span>${total - n.no} fonctions sur ${total}</span></h3>
+      <div class="bar" role="img" aria-label="${n.ok} vérifiées, ${n.part} partielles, ${n.todo} à confirmer, ${n.no} absentes">${bar}</div>
+      <div class="counts">${["ok", "part", "todo", "no"].map(k => `<div><b style="color:${colors[k]}">${n[k]}</b><small>${S[k].toLowerCase()}${n[k] > 1 && k !== "todo" ? "s" : ""}</small></div>`).join("")}</div></div>`;
+  }).join("");
+}
+
+function tables() {
+  const cats = [...new Set(ROWS.map(r => r[0]))];
+  document.getElementById("cats").innerHTML = cats.map(cat => `
+    <section class="cat" style="margin-bottom:36px">
+      <div class="cat-head"><h2>${cat}</h2><p>${INTROS[cat] || ""}</p></div>
+      <div class="scroll"><table>
+        <thead><tr><th scope="col">Fonctionnalité</th><th scope="col">macOS</th><th scope="col">Windows</th></tr></thead>
+        <tbody>${ROWS.filter(r => r[0] === cat).map(r => `
+          <tr data-mac="${r[2][0]}" data-win="${r[3][0]}">
+            <td class="feat">${esc(r[1])}</td>
+            <td class="cell">${pill(r[2][0])}${r[2][1] ? `<span class="note">${esc(r[2][1])}</span>` : ""}</td>
+            <td class="cell">${pill(r[3][0])}${r[3][1] ? `<span class="note">${esc(r[3][1])}</span>` : ""}</td>
+          </tr>`).join("")}</tbody>
+      </table></div>
+    </section>`).join("");
+}
+
+function applyFilter(f) {
+  document.querySelectorAll(".filters button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === f)));
+  document.querySelectorAll("tbody tr").forEach(tr => {
+    const m = tr.dataset.mac, w = tr.dataset.win;
+    const show = f === "all" || (f === "diff" && m !== w) || (f === "todo" && (m === "todo" || w === "todo"))
+      || (f === "mac" && m !== "no" && w === "no") || (f === "win" && w !== "no" && m === "no");
+    tr.hidden = !show;
+  });
+  document.querySelectorAll("section.cat").forEach(sec => {
+    const rows = sec.querySelectorAll("tbody tr");
+    if (rows.length) sec.hidden = [...rows].every(r => r.hidden);
+  });
+  try { localStorage.setItem("dm-filter", f); } catch (e) {}
+}
+
+summary();
+tables();
+document.querySelectorAll(".filters button").forEach(b => b.addEventListener("click", () => applyFilter(b.dataset.f)));
+let saved = "all";
+try { saved = localStorage.getItem("dm-filter") || "all"; } catch (e) {}
+applyFilter(saved);
+</script>
