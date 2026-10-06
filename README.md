@@ -51,6 +51,8 @@ Dans DeskMonitor : **Paramètres › À propos › Signaler un problème** (form
 - **Voix neuronales** : quand elles sont choisies (c'est le réglage par défaut), les phrases dites par l'assistant sont envoyées aux serveurs de Microsoft pour être lues. Pour ne rien envoyer, choisissez une voix « classique » ou « naturelle » installée sur l'ordinateur.
 - La météo interroge Open-Meteo. Si aucune ville n'est indiquée, ipwho.is sert à situer la ville d'après l'adresse IP.
 
+Tous les détails : [politique de confidentialité](docs/confidentialite.md).
+
 ## Développement
 
 Il faut Python 3.12.
