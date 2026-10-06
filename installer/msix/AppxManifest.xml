@@ -4,10 +4,11 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap desktop desktop6 rescap">
+  IgnorableNamespaces="uap uap5 desktop desktop6 rescap">
 
   <Identity Name="{NAME}" Publisher="{PUBLISHER}" Version="{VERSION}" ProcessorArchitecture="x64" />
 
@@ -46,6 +47,13 @@
                            EntryPoint="Windows.FullTrustApplication">
           <desktop:StartupTask TaskId="DeskMonitorStartup" Enabled="false" DisplayName="DeskMonitor" />
         </desktop:Extension>
+        <!-- commande « deskmonitor » dans un terminal (autotest : option selftest) -->
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="DeskMonitor.exe"
+                        EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias>
+            <uap5:ExecutionAlias Alias="deskmonitor.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
       </Extensions>
     </Application>
   </Applications>

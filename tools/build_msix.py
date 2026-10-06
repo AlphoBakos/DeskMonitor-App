@@ -77,8 +77,10 @@ def main():
         return
     out = ROOT / "Installateur" / f"DeskMonitor-{version.rsplit('.', 1)[0]}.msix"
     out.parent.mkdir(exist_ok=True)
-    subprocess.run([str(makeappx()), "pack", "/o", "/d", str(LAYOUT), "/p", str(out)], check=True,
-                   stdout=subprocess.DEVNULL)
+    r = subprocess.run([str(makeappx()), "pack", "/o", "/d", str(LAYOUT), "/p", str(out)], capture_output=True,
+                       text=True, errors="replace")
+    if r.returncode:
+        sys.exit("makeappx a échoué :\n" + "\n".join(ln for ln in r.stdout.splitlines() if "error" in ln.lower()))
     print(f"paquet créé : {out} ({out.stat().st_size // 1_000_000} Mo)")
 
 

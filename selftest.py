@@ -283,6 +283,19 @@ def selftest(DeskWidget):
             step("reconnaissance vocale Windows", win_recognition)
         step("thème du fond d'écran", lambda: bool(theme_from_wallpaper(
             wallpapers.list_wallpapers()[0][1])))
+
+        def store_test():
+            """Version Microsoft Store : tâche de démarrage du paquet (activée puis remise comme avant)."""
+            if not core.is_packaged():
+                return "version classique (test sauté)"
+            before = core.is_autostart()
+            core.set_autostart(True)
+            on = core.is_autostart()
+            core.set_autostart(before)
+            if not on or core.is_autostart() != before:
+                raise RuntimeError(f"tâche de démarrage : activée={on}, remise={core.is_autostart()} (attendu {before})")
+            return "paquet MSIX, tâche de démarrage OK"
+        step("version Microsoft Store", store_test)
         root.after(500, finish)
 
     def finish():

@@ -600,10 +600,18 @@ def is_packaged():
 STARTUP_TASK_ID = "DeskMonitorStartup"   # identique à AppxManifest.xml
 
 
-def _startup_task():
+def _wait(op):
+    """Attend une opération asynchrone de Windows (winsdk) depuis du code ordinaire."""
     import asyncio
+
+    async def run():
+        return await op
+    return asyncio.run(run())
+
+
+def _startup_task():
     from winsdk.windows.applicationmodel import StartupTask
-    return asyncio.run(StartupTask.get_async(STARTUP_TASK_ID))
+    return _wait(StartupTask.get_async(STARTUP_TASK_ID))
 
 
 # ----- Démarrage automatique ------------------------------------------------ #
@@ -646,10 +654,9 @@ def set_autostart(enabled):
     if not IS_WIN:
         return
     if is_packaged():   # version Store : tâche de démarrage du paquet (le registre n'est pas utilisable)
-        import asyncio
         task = _startup_task()
         if enabled:
-            state = asyncio.run(task.request_enable_async())
+            state = _wait(task.request_enable_async())
             from winsdk.windows.applicationmodel import StartupTaskState
             if state == StartupTaskState.DISABLED_BY_USER:
                 raise OSError("Le lancement au démarrage a été désactivé dans le Gestionnaire des tâches "
