@@ -1231,10 +1231,16 @@ class DeskWidget:
             return self._do_action(todo, run=act)
         words = actions.norm(text).split()
         if ({"libere", "liberer", "vide", "vider", "free", "clear"} & set(words)) and ({"memoire", "ram", "memory"} & set(words)):
+            if not IS_WIN:
+                return t("Sur Mac, la mémoire est gérée par macOS : je ne peux pas la libérer moi-même.",
+                         "On a Mac, macOS manages memory itself: I can't free it for you.")
             if act:
                 self.action_ram()
             return t("Je libère la mémoire.", "Freeing up memory.")
         if "dns" in words:
+            if not IS_WIN:
+                return t("Sur Mac, vider le cache DNS demande les droits administrateur : je ne peux pas le faire.",
+                         "On a Mac, flushing the DNS cache needs administrator rights: I can't do it.")
             if act:
                 self.action_dns()
             return t("Je vide le cache DNS.", "Flushing the DNS cache.")

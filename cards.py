@@ -563,7 +563,8 @@ class SystemCard(Card):
         cpu_lbl = self.text(cx, cy + 15, "CPU ›", 9, False, self.m.sub, anchor="center", num=True)
         # la jauge ouvre la liste des programmes qui utilisent le processeur (on peut les fermer)
         self.clickable([*self.cpu.ticks, self.lbl, cpu_lbl], self.app.open_processes)
-        self.chip("Libérer la RAM", lambda fin: self.app.action_ram(fin))
+        if IS_WIN:   # libération de la mémoire : Windows uniquement (pas d'équivalent sûr sur macOS)
+            self.chip("Libérer la RAM", lambda fin: self.app.action_ram(fin))
         # réglette mémoire : mêmes graduations, à plat
         y, x0, x1 = self.py - 17, 46, self.px - 46
         self.text(16, y + 5, "RAM", 10, False, self.m.sub, anchor="sw", num=True)
@@ -618,7 +619,8 @@ class StorageCard(Card):
 class NetworkCard(Card):
     def build(self):
         self.header("Réseau")
-        self.chip("Vider le DNS", lambda fin: self.app.action_dns(fin))
+        if IS_WIN:   # sur macOS, vider le cache DNS demande les droits administrateur
+            self.chip("Vider le DNS", lambda fin: self.app.action_dns(fin))
         self.down = self.text(16, 32, "", 34, False, num=True)
         self.down_u = self.text(0, 0, "", 13, False, self.m.sub, anchor="sw", num=True)
         self.up = self.text(self.px - 16, 44, "", 13, False, self.m.sub, anchor="ne", num=True)

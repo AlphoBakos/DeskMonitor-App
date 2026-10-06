@@ -2,10 +2,18 @@
 
 Des widgets pour le bureau de Windows et de macOS : la machine en un coup d'œil, vos applications bien rangées, et un assistant vocal qui agit pour vous.
 
+![Le bureau avec DeskMonitor : cartes de monitoring et panneaux d'applications](docs/images/bureau-sombre.png)
+
+<p align="center">
+  <img src="docs/images/glisser.gif" width="360" alt="On déplace une carte : les autres s'écartent pour lui faire de la place">
+  &nbsp;
+  <img src="docs/images/actions.png" width="360" alt="Au survol, des boutons d'action apparaissent sur les cartes">
+</p>
+
 ## Ce que fait DeskMonitor
 
 - **Cartes façon widgets** : heure, processeur et mémoire, stockage, réseau, batterie, météo, agenda, musique, processus gourmands, note rapide, presse-papiers.
-- **Actions en un clic** : au survol d'une carte, libérer la RAM, nettoyer le cache ou vider le cache DNS. Un clic sur la jauge du processeur montre les programmes qui le ralentissent.
+- **Actions en un clic** : au survol d'une carte, nettoyer le cache, et sous Windows libérer la RAM ou vider le cache DNS. Un clic sur la jauge du processeur montre les programmes qui le ralentissent.
 - **Bureau organisé** : vos applications rangées par thème dans des panneaux (Internet, Bureautique, Développement…), sans déplacer aucun fichier.
 - **Assistant vocal** : dites son nom, puis votre demande.
   - « ouvre Chrome », « ouvre le dossier téléchargements » ;
@@ -15,6 +23,11 @@ Des widgets pour le bureau de Windows et de macOS : la machine en un coup d'œil
 - **Apparence soignée** : verre dépoli, thème clair ou sombre, couleur d'accent du système, animations fluides.
 - **Fonds d'écran et écran de verrouillage** : une collection de fonds originaux, un diaporama, un fond « vivant » qui suit l'heure, et un écran de verrouillage avec la date.
 - **Alertes, profils et mises à jour automatiques.**
+
+<p align="center">
+  <img src="docs/images/bureau-clair.png" width="49%" alt="Thème clair">
+  <img src="docs/images/parametres.png" width="49%" alt="Paramètres">
+</p>
 
 ## Installation
 
