@@ -50,3 +50,9 @@ build.bat                          # installateur Windows (Inno Setup 6 requis)
 - **Pour contribuer** : les règles et les pièges connus sont dans `docs/CONSIGNES.md`.
 
 Projet d'Alpha Oumar Diallo (@AlphoBakos) et Doura (@abdourahmanekaba).
+
+## Droits
+
+© 2026 Alpha Oumar Diallo et Doura. Tous droits réservés.
+
+Le code est public pour être consulté. Il ne peut pas être copié, modifié, redistribué ni réutilisé dans un autre projet sans notre autorisation écrite. L'application peut être téléchargée et utilisée librement depuis les Releases.
