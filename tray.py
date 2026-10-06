@@ -39,7 +39,13 @@ class TrayIcon:
 
     def _menu(self):
         app = self.app
-        M, I, S = pystray.Menu, pystray.MenuItem, pystray.Menu.SEPARATOR
+        M, S = pystray.Menu, pystray.Menu.SEPARATOR
+        from i18n import tr
+
+        def I(text, *args, **kw):   # libellés recalculés à chaque ouverture : suivent la langue de l'interface
+            if callable(text):
+                return pystray.MenuItem(lambda item, f=text: tr(f(item)), *args, **kw)
+            return pystray.MenuItem(lambda item, t=text: tr(t), *args, **kw)
 
         def profiles():
             names = app.profiles.names()

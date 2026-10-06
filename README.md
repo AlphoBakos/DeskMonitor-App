@@ -23,6 +23,7 @@ Des widgets pour le bureau de Windows et de macOS : la machine en un coup d'œil
 - **Apparence soignée** : verre dépoli, thème clair ou sombre, couleur d'accent du système, animations fluides.
 - **Fonds d'écran et écran de verrouillage** : une collection de fonds originaux, un diaporama, un fond « vivant » qui suit l'heure, et un écran de verrouillage avec la date.
 - **Alertes, profils et mises à jour automatiques.**
+- **En français et en anglais** : Paramètres › Général › Langue, ou dès l'accueil au premier lancement.
 
 <p align="center">
   <img src="docs/images/bureau-clair.png" width="49%" alt="Thème clair">

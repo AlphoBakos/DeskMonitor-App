@@ -296,6 +296,23 @@ def selftest(DeskWidget):
                 raise RuntimeError(f"tâche de démarrage : activée={on}, remise={core.is_autostart()} (attendu {before})")
             return "paquet MSIX, tâche de démarrage OK"
         step("version Microsoft Store", store_test)
+
+        def english_test():
+            """Interface en anglais : dictionnaire présent (aussi dans l'application construite), modèles, dates."""
+            import i18n
+            from datetime import datetime
+            before = i18n.lang()
+            i18n.set_lang("en")
+            try:
+                checks = {"Apparence": "Appearance", "Le GPU est à 91 °C.": "The GPU is at 91 °C.",
+                          core.format_date(datetime(2026, 10, 6), {"date_format": "long"}): "Tuesday, October 6, 2026"}
+                bad = {k: v for k, v in checks.items() if i18n.tr(k) != v}
+                if bad:
+                    raise RuntimeError(f"traductions inattendues : {bad}")
+                return f"{len(i18n._en)} textes traduits"
+            finally:
+                i18n.set_lang(before)
+        step("interface en anglais", english_test)
         root.after(500, finish)
 
     def finish():

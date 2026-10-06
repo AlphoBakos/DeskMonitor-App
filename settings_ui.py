@@ -16,7 +16,9 @@ import tkinter as tk
 from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
 
+import i18n
 import lockscreen
+from i18n import tr
 import profiles as prof
 import wallpapers
 from core import (IS_MAC, ALIGNS, APP_NAME, APP_VERSION, CONFIG_DIR, DATE_CASES, DATE_FORMATS, DEFAULTS, IS_WIN,
@@ -314,6 +316,8 @@ class SettingsWindow:
             self.cfg[a][b] = value
         else:
             self.cfg[key] = value
+        if key == "voice_lang":   # langue de l'interface : la page se redessine aussitôt dans la nouvelle langue
+            i18n.set_lang(value)
         if key == "accent_mode" and value == "wallpaper":   # couleur du fond d'écran calculée tout de suite
             try:
                 self.cfg["accent_color"] = prof.theme_from_wallpaper()["accent_color"]
@@ -341,7 +345,7 @@ class SettingsWindow:
         ("general", "◎", "Général", "Démarrage, raccourci, nettoyage et mises à jour"),
         ("about", "○", "À propos", ""),
     ]
-    RELAYOUT_KEYS = ("layout", "accent_mode", "mac_theme", "card_blur", "org_enabled")
+    RELAYOUT_KEYS = ("layout", "accent_mode", "mac_theme", "card_blur", "org_enabled", "voice_lang")
 
     def pages(self):
         """Pages disponibles sur ce système (l'écran de verrouillage n'est personnalisable que sous Windows)."""
@@ -357,7 +361,7 @@ class SettingsWindow:
         box = tk.Frame(head, bg=UI["side"])
         box.pack(side="left", padx=10)
         tk.Label(box, text=APP_NAME, bg=UI["side"], fg=UI["text"], font=(FONT, 14, "bold")).pack(anchor="w")
-        tk.Label(box, text=f"version {APP_VERSION}", bg=UI["side"], fg=UI["muted"],
+        tk.Label(box, text=tr("version {}").format(APP_VERSION), bg=UI["side"], fg=UI["muted"],
                  font=(NUM_FONT, 10)).pack(anchor="w")
 
         # recherche
@@ -439,11 +443,12 @@ class SettingsWindow:
         for key, emo, title, _ in self.pages():
             for card_title, rows in getattr(self, f"p_{key}")():
                 hits = [r for r in rows if r["type"] != "custom" and
-                        (q in r["label"].lower() or q in r.get("desc", "").lower())]
+                        (q in tr(r["label"]).lower() or q in tr(r.get("desc", "")).lower())]
                 if hits:
-                    cards.append((f"{emo}  {title}  ›  {card_title}", hits))
-        sub = f"{sum(len(r) for _, r in cards)} réglage(s) trouvé(s)" if cards else "Aucun réglage ne correspond."
-        self._render(f"Recherche : « {self.search_var.get().strip()} »", sub, cards)
+                    cards.append((f"{emo}  {tr(title)}  ›  {tr(card_title)}", hits))
+        sub = tr("{} réglage(s) trouvé(s)").format(sum(len(r) for _, r in cards)) if cards else \
+            tr("Aucun réglage ne correspond.")
+        self._render(tr("Recherche : « {} »").format(self.search_var.get().strip()), sub, cards)
 
     def _render(self, title, subtitle, cards):
         for ch in self.content.winfo_children():
@@ -502,7 +507,7 @@ class SettingsWindow:
     def _ctl_choice(self, parent, r):
         opts = r["options"]
         keys = list(opts)
-        cb = ttk.Combobox(parent, values=list(opts.values()), state="readonly", width=r.get("width", 24))
+        cb = ttk.Combobox(parent, values=[tr(v) for v in opts.values()], state="readonly", width=r.get("width", 24))
         cur = self.get(r["key"])
         cb.current(keys.index(cur) if cur in keys else 0)
         cb.bind("<<ComboboxSelected>>", lambda e: self.set(r["key"], keys[cb.current()]))
@@ -534,12 +539,12 @@ class SettingsWindow:
                UI["card"]).pack(side="left", padx=(12, 0))
 
     def _ctl_slider(self, parent, r):
-        val = tk.Label(parent, text=f"{self.get(r['key'])} {r['unit']}", bg=UI["card"], fg=UI["muted"],
+        val = tk.Label(parent, text=f"{self.get(r['key'])} {tr(r['unit'])}", bg=UI["card"], fg=UI["muted"],
                        font=(FONT, 9), width=6, anchor="e")
 
         def moved(v):
             v = int(float(v))
-            val.configure(text=f"{v} {r['unit']}")
+            val.configure(text=f"{v} {tr(r['unit'])}")
             if v != self.get(r["key"]):
                 self.set(r["key"], v)
 
@@ -748,7 +753,7 @@ class SettingsWindow:
                 B("Rangement", "Répartit les panneaux à côté des cartes, sans chevauchement", "Ranger tout le bureau",
                   lambda: self.app.tidy_desktop()),
                 B("Liste des applications", "Relit les applications installées", "Actualiser", org.refresh_all),
-                B("Raccourcis masqués", f"{len(self.cfg['org_hidden'])} raccourci(s) masqué(s)",
+                B("Raccourcis masqués", tr("{} raccourci(s) masqué(s)").format(len(self.cfg['org_hidden'])),
                   "Tout réafficher", lambda: (org.unhide_all(), self.refresh())),
             ]),
             ("Panneaux", [X(self._panels_table)]),
@@ -815,14 +820,12 @@ class SettingsWindow:
         import voice as voicemod
         voices = {"": "Automatique (meilleure voix de la langue)",
                   voicemod.SYSTEM: "Voix du système (Siri si choisie dans macOS)" if IS_MAC else "Voix par défaut de Windows",
-                  **{n: f"{lbl}, français" for n, lbl in voicemod.voices("fr").items()},
-                  **{n: f"{lbl}, anglais" for n, lbl in voicemod.voices("en").items()}}
+                  **{n: f"{lbl}, {tr('français')}" for n, lbl in voicemod.voices("fr").items()},
+                  **{n: f"{lbl}, {tr('anglais')}" for n, lbl in voicemod.voices("en").items()}}
         return [
             ("Vous et votre assistant", [
                 TXT("user_name", "Votre prénom", "L'assistant vous appelle par ce prénom", placeholder="Alpho"),
                 TXT("assistant_name", "Nom de l'assistant", "Le nom qu'il se donne en se présentant", placeholder="Jarvis"),
-                C("voice_lang", "Langue de l'assistant", {"fr": "Français", "en": "Anglais"},
-                  "Récapitulatif, alertes et réponses sont dits dans cette langue"),
             ]),
             ("Ce qu'il sait faire", [self._note(
                 "Ouvrir une application : « ouvre Chrome », « lance Excel ».\n"
@@ -913,6 +916,8 @@ class SettingsWindow:
         admin = is_admin()
         return [
             ("Comportement", [
+                C("voice_lang", "Langue", {"fr": "Français", "en": "English"},
+                  "Interface, voix et réponses de l'assistant"),
                 T(None, "Lancer au démarrage de Windows" if IS_WIN else "Lancer à l'ouverture de session", cond=IS_WIN or IS_MAC,
                   get=is_autostart, set=lambda v: set_autostart(v)),
                 T(None, "Afficher les widgets", "Aussi accessible depuis l'icône de la zone de notification",
@@ -1210,7 +1215,7 @@ class SettingsWindow:
         txt = tk.Frame(box, bg=bg)
         txt.pack(side="left", anchor="n")
         tk.Label(txt, text=APP_NAME, bg=bg, fg=UI["text"], font=(FONT, 20, "bold")).pack(anchor="w")
-        tk.Label(txt, text=f"Version {APP_VERSION}", bg=bg, fg=UI["muted"], font=(FONT, 10)).pack(anchor="w")
+        tk.Label(txt, text=tr("Version {}").format(APP_VERSION), bg=bg, fg=UI["muted"], font=(FONT, 10)).pack(anchor="w")
         tk.Label(txt, text="Heure, date, monitoring, alertes et bureau organisé,\nle tout personnalisable.",
                  bg=bg, fg=UI["text"], font=(FONT, 10), justify="left").pack(anchor="w", pady=(10, 0))
         repo = self.cfg.get("update_repo")

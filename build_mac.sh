@@ -13,7 +13,7 @@ echo "=== DeskMonitor $VERSION pour Mac ($ARCH) ==="
 rm -rf build/dist build/work
 python3 -m PyInstaller --noconfirm --clean --windowed --name DeskMonitor \
   --distpath build/dist --workpath build/work --specpath build \
-  --icon "$PWD/assets/DeskMonitor.icns" --add-data "$PWD/assets/wallpapers:wallpapers" \
+  --icon "$PWD/assets/DeskMonitor.icns" --add-data "$PWD/assets/wallpapers:wallpapers" --add-data "$PWD/i18n_en.json:." \
   --osx-bundle-identifier com.deskmonitor.app \
   --hidden-import objc --hidden-import AppKit --hidden-import Foundation --hidden-import EventKit --hidden-import Speech --hidden-import AVFoundation \
   --hidden-import certifi --collect-all edge_tts desk_monitor.py

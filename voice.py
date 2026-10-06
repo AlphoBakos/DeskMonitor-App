@@ -11,6 +11,8 @@ import subprocess
 import sys
 import threading
 
+from i18n import tr
+
 IS_MAC = sys.platform == "darwin"
 SYSTEM = "__system__"   # voix choisie dans les réglages du système (sur Mac : peut être une voix Siri)
 IS_WIN = sys.platform == "win32"
@@ -183,7 +185,7 @@ def voices(lang="fr"):
     out = {}
     if neural_ok():   # voix neuronales d'abord : les plus naturelles
         for vid, label in NEURAL.get(lang, ()):
-            out[NEURAL_PREFIX + vid] = f"{label} (neuronale, très naturelle, en ligne)"
+            out[NEURAL_PREFIX + vid] = f"{label} ({tr('neuronale, très naturelle, en ligne')})"
     try:
         if IS_MAC:
             import re
@@ -201,7 +203,7 @@ def voices(lang="fr"):
         elif IS_WIN:
             for name, culture in _onecore_voices().items():   # voix naturelles d'abord
                 if culture.lower().startswith(lang):
-                    out[name] = f"{name.replace('Microsoft ', '')} (naturelle)"
+                    out[name] = f"{name.replace('Microsoft ', '')} ({tr('naturelle')})"
             txt = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
                  "Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer)"
@@ -211,7 +213,7 @@ def voices(lang="fr"):
                 culture, _, name = line.strip().partition("|")
                 # « Microsoft Hortense Desktop » existe aussi en OneCore : on ne garde que la version naturelle
                 if culture.startswith(lang) and name and name.replace(" Desktop", "") not in out:
-                    out[name] = name.replace(" Desktop", "") + " (classique)"
+                    out[name] = name.replace(" Desktop", "") + f" ({tr('classique')})"
     except (OSError, subprocess.SubprocessError):
         pass
     return out

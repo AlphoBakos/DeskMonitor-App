@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.9.1"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -101,9 +101,27 @@ DATE_CASES = {"normal": "Normale", "upper": "MAJUSCULES", "lower": "minuscules",
 ALIGNS = {"left": "Gauche", "center": "Centré", "right": "Droite"}
 
 
+_EN_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+_EN_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+              "November", "December"]
+
+
+def _en_date(key, d):
+    """Date à l'anglaise (« Tuesday, October 6, 2026 »), noms écrits ici : indépendants de la langue de Windows."""
+    day, month = _EN_DAYS[d.weekday()], _EN_MONTHS[d.month - 1]
+    return {"long": f"{day}, {month} {d.day}, {d.year}", "long_noyear": f"{day}, {month} {d.day}",
+            "medium": f"{month} {d.day}, {d.year}", "short": f"{day[:3]}, {month[:3]} {d.day}, {d.year}",
+            "short_noyear": f"{day[:3]}, {month[:3]} {d.day}", "numeric_day": f"{day} {d:%m/%d/%Y}",
+            "numeric": f"{d:%m/%d/%Y}", "iso": f"{d:%Y-%m-%d}"}.get(key) or f"{day}, {month} {d.day}, {d.year}"
+
+
 def format_date(d, cfg):
     key = cfg.get("date_format", "long")
-    txt = DATE_FORMATS.get(key, DATE_FORMATS["long"])(d)
+    import i18n
+    if i18n.lang() == "en":
+        txt = _en_date(key, d)
+    else:
+        txt = DATE_FORMATS.get(key, DATE_FORMATS["long"])(d)
     case = cfg.get("date_case", "normal")
     if case == "upper":
         txt = txt.upper()
@@ -116,7 +134,9 @@ def format_date(d, cfg):
     if cfg.get("date_two_lines") and key in WITH_WEEKDAY:
         txt = txt.replace(" ", "\n", 1)
     if cfg.get("date_week"):
-        sem = "SEMAINE" if case == "upper" else "semaine" if case == "lower" else "Semaine"
+        import i18n
+        word = "week" if i18n.lang() == "en" else "semaine"
+        sem = word.upper() if case == "upper" else word if case == "lower" else word.capitalize()
         txt += f" · {sem} {d.isocalendar()[1]}"
     return txt
 
@@ -530,11 +550,13 @@ def save_config(cfg):
 
 
 def fmt_bytes(n):
+    import i18n
+    en = i18n.lang() == "en"
     n = float(n)
-    for unit in ("o", "Ko", "Mo", "Go", "To"):
+    for unit, unit_en in (("o", "B"), ("Ko", "KB"), ("Mo", "MB"), ("Go", "GB"), ("To", "TB")):
         if abs(n) < 1024 or unit == "To":
             txt = f"{n:.0f}" if unit in ("o", "Ko") else f"{n:.1f}"
-            return f"{txt.replace('.', ',')} {unit}"
+            return f"{txt} {unit_en}" if en else f"{txt.replace('.', ',')} {unit}"
         n /= 1024
 
 
@@ -543,8 +565,10 @@ def fmt_duration(seconds):
     d, rem = divmod(seconds, 86400)
     h, rem = divmod(rem, 3600)
     m = rem // 60
+    import i18n
+    day = "d" if i18n.lang() == "en" else "j"
     if d:
-        return f"{d} j {h} h {m:02d} min"
+        return f"{d} {day} {h} h {m:02d} min"
     return f"{h} h {m:02d} min"
 
 

@@ -13,6 +13,7 @@ from pathlib import Path
 import psutil
 
 
+from i18n import tr
 from core import (
     IS_WIN,
     fmt_bytes,
@@ -115,20 +116,20 @@ class Optimizer:
             f, s = cls._clean_dir(t, excluded)
             freed += f
             skipped += s
-        msg = f"Cache nettoyé : {fmt_bytes(freed)} libérés"
+        msg = tr(f"Cache nettoyé : {fmt_bytes(freed)} libérés")
         if recycle:
             msg += " · " + cls.empty_recycle_bin()
         if skipped:
-            msg += f" ({skipped} fichiers en cours d'utilisation ignorés)"
+            msg += tr(f" ({skipped} fichiers en cours d'utilisation ignorés)")
         return msg
 
     @staticmethod
     def empty_recycle_bin():
         if IS_MAC:  # le Finder vide la corbeille (macOS peut demander l'autorisation la 1re fois)
             code, _ = run_cmd(["osascript", "-e", 'tell application "Finder" to empty trash'])
-            return "Corbeille vidée" if code == 0 else "Impossible de vider la corbeille"
+            return tr("Corbeille vidée") if code == 0 else tr("Impossible de vider la corbeille")
         if not IS_WIN:
-            return "Corbeille : Windows uniquement"
+            return tr("Corbeille : Windows uniquement")
 
         class SHQUERYRBINFO(ctypes.Structure):
             if ctypes.sizeof(ctypes.c_void_p) == 4:
@@ -141,15 +142,15 @@ class Optimizer:
         shell32 = ctypes.windll.shell32
         shell32.SHQueryRecycleBinW(None, ctypes.byref(info))
         if info.i64NumItems == 0:
-            return "Corbeille déjà vide"
+            return tr("Corbeille déjà vide")
         # SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND
         shell32.SHEmptyRecycleBinW(None, None, 0x07)
-        return f"Corbeille vidée ({fmt_bytes(info.i64Size)})"
+        return tr(f"Corbeille vidée ({fmt_bytes(info.i64Size)})")
 
     @staticmethod
     def free_ram():
         if not IS_WIN:
-            return "Libération de la RAM : disponible sous Windows uniquement"
+            return tr("Libération de la RAM : disponible sous Windows uniquement")
         before = psutil.virtual_memory().available
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)
         psapi = ctypes.WinDLL("psapi", use_last_error=True)
@@ -170,17 +171,17 @@ class Optimizer:
                 k32.CloseHandle(h)
         time.sleep(1.0)
         gained = max(0, psutil.virtual_memory().available - before)
-        msg = f"RAM optimisée : {fmt_bytes(gained)} récupérés sur {count} processus"
+        msg = tr(f"RAM optimisée : {fmt_bytes(gained)} récupérés sur {count} processus")
         if not is_admin():
-            msg += " (lancez en admin pour plus d'effet)"
+            msg += tr(" (lancez en admin pour plus d'effet)")
         return msg
 
     @staticmethod
     def flush_dns():
         if IS_WIN:
             code, _ = run_cmd(["ipconfig", "/flushdns"])
-            return "Cache DNS vidé" if code == 0 else "Échec du vidage DNS"
-        return "Vidage DNS : Windows uniquement"
+            return tr("Cache DNS vidé") if code == 0 else tr("Échec du vidage DNS")
+        return tr("Vidage DNS : Windows uniquement")
 
     @staticmethod
     def current_power_plan():
@@ -194,12 +195,12 @@ class Optimizer:
     @staticmethod
     def set_power_plan(high_perf):
         if not IS_WIN:
-            return "Plans d'alimentation : Windows uniquement"
+            return tr("Plans d'alimentation : Windows uniquement")
         scheme = "SCHEME_MIN" if high_perf else "SCHEME_BALANCED"
         code, _ = run_cmd(["powercfg", "/setactive", scheme])
         if code != 0:
-            return "Ce plan d'alimentation n'est pas disponible sur cette machine"
-        return f"Plan d'alimentation : {Optimizer.current_power_plan()}"
+            return tr("Ce plan d'alimentation n'est pas disponible sur cette machine")
+        return tr(f"Plan d'alimentation : {Optimizer.current_power_plan()}")
 
     @classmethod
     def boost_all(cls, browsers, recycle):

@@ -31,6 +31,8 @@ except ImportError:  # pragma: no cover
 
 import sensors
 import actions
+import i18n
+from i18n import tr
 from organizer import DesktopOrganizer, set_desktop_icons
 from profiles import ProfileManager
 from settings_ui import UI, SettingsWindow, font_list, setup_styles
@@ -91,6 +93,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
     def __init__(self, root):
         self.root = root
         self.cfg = load_config()
+        i18n.install()                      # textes de l'interface traduits automatiquement
+        i18n.set_lang(self.cfg.get("voice_lang", "fr"))
         self.anim = Animator(root, lambda: self.cfg.get("animations", True))
         self.rows = {}
         self._jobs = queue.Queue()
@@ -303,6 +307,9 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
     def build(self, force=False):
         """Met à jour l'affichage. Seules les parties dont les réglages ont changé sont redessinées."""
         c = self.cfg
+        i18n.set_lang(c.get("voice_lang", "fr"))
+        if i18n.lang() != getattr(self, "_built_lang", None):   # langue changée : tout est redessiné
+            self._built_lang, force = i18n.lang(), True
         self._sync_palette()
         self._build_panels(force)
         detached = self._detached()
@@ -315,7 +322,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             self._build_main(detached)
         self.update_clock()
         self.update_stats()
-        self.organizer.build()
+        self.organizer.build(force)
         self.cards.build(force)
 
     def _build_main(self, detached):
@@ -362,7 +369,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         if show["disks"]:
             for part in self._disk_partitions():
                 name = part.mountpoint.rstrip("\\") if IS_WIN else part.mountpoint
-                metrics.append((f"disk:{part.mountpoint}", f"Disque {name}", "bar"))
+                metrics.append((f"disk:{part.mountpoint}", tr("Disque {}").format(name), "bar"))
         if show["net"]:
             metrics.append(("net", "Réseau", "graph" if c["graphs"] else None))
         if show["ping"]:
@@ -939,7 +946,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             if key.startswith("disk:"):
                 try:
                     u = psutil.disk_usage(key[5:])
-                    self._set_row(key, f"{u.percent:.0f} % · {fmt_bytes(u.free)} libres", u.percent)
+                    self._set_row(key, f"{u.percent:.0f} % · " + tr("{} libres").format(fmt_bytes(u.free)),
+                                  u.percent)
                 except OSError:
                     pass
         if "net" in self.rows:
@@ -966,9 +974,9 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         if "battery" in self.rows:
             b = self._battery()
             if b is not None:
-                state = "secteur" if b.power_plugged else fmt_duration(b.secsleft) \
+                state = tr("secteur") if b.power_plugged else fmt_duration(b.secsleft) \
                     if b.secsleft not in (psutil.POWER_TIME_UNKNOWN, psutil.POWER_TIME_UNLIMITED) \
-                    and b.secsleft > 0 else "sur batterie"
+                    and b.secsleft > 0 else tr("sur batterie")
                 self._set_row("battery", f"{b.percent:.0f} % · {state}", b.percent)
         if "uptime" in self.rows:
             self._set_row("uptime", fmt_duration(time.time() - psutil.boot_time()))

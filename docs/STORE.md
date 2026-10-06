@@ -46,6 +46,34 @@ https://github.com/AlphoBakos/DeskMonitor-App/blob/main/docs/confidentialite.md
 
 **Âge :** remplir le questionnaire IARC. DeskMonitor n'a ni contenu sensible ni échanges entre utilisateurs.
 
+## 3 bis. La fiche en anglais (English listing)
+
+Depuis la 1.9.1, l'interface existe aussi en anglais, et le paquet déclare les deux langues. Partner Center demande donc aussi une fiche **English (United States)**. Pour l'ajouter : Descriptions dans le Store › Ajouter/supprimer des langues › English (United States).
+
+**Description :**
+> DeskMonitor turns your desktop into a sleek dashboard.
+>
+> • Widget-style cards: clock, processor and memory, storage, network, battery, weather, calendar, music.
+> • One-click actions: clean the cache, free up memory, flush the DNS cache, see which programs slow your computer down.
+> • Organized desktop: your apps grouped by theme into panels, without moving a single file.
+> • Voice assistant: "open Chrome", "open the downloads folder", "search for a recipe", "give me a summary".
+> • Frosted glass, light or dark theme, smooth animations, original wallpapers and a custom lock screen.
+> • Available in English and French.
+
+**Description courte :**
+> Widgets for your desktop: your computer at a glance, your apps organized and a voice assistant that gets things done.
+
+**Fonctionnalités (une par ligne) :**
+> Widget-style monitoring cards
+> One-click cache cleanup and memory release
+> Organized desktop: apps grouped by theme
+> Voice assistant that opens apps, folders and web searches
+> Light or dark theme, glass effect, smooth animations
+
+**Captures d'écran :** `docs/images/en/` (`desktop-dark.png`, `actions.png`, `desktop-light.png`, `settings.png`).
+
+**Logos :** les mêmes que la fiche française (`docs/store/`).
+
 ## 4. Justifier les « fonctionnalités restreintes »
 
 Partner Center demande pourquoi l'application utilise des fonctionnalités restreintes. Voici les textes à copier.

@@ -11,6 +11,7 @@ import psutil
 
 from settings_ui import UI, dark_titlebar
 from optimizer import Optimizer
+from i18n import tr
 
 from core import (
     IS_WIN,
@@ -135,7 +136,7 @@ class ProcessWindow:
             if str(pid) in selected:
                 self.tree.selection_add(iid)
         total = psutil.cpu_percent(None)
-        self.info.configure(text=f"{len(rows)} processus · CPU total {total:.0f} %")
+        self.info.configure(text=tr("{} processus · CPU total {} %").format(len(rows), f"{total:.0f}"))
 
     def sort_by(self, key):
         self.sort_rev = not self.sort_rev if self.sort_key == key else key != "name"

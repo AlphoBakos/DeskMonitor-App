@@ -10,6 +10,7 @@ import tkinter as tk
 import mac_native
 from anim import ease_in as anim_ease_in
 
+from i18n import tr
 from core import (
     IS_WIN,
     TEXT_FONT,
@@ -80,6 +81,7 @@ class AlertsMixin:
     def notify(self, title, msg, action=None):
         """Petite notification en bas à droite de l'écran, aux couleurs du thème."""
         c = self.cfg
+        title, msg = tr(title), tr(msg)   # aussi pour les notifications de Windows et de macOS
         if IS_MAC and c["native_alerts"]:
             mac_native.notify(title, msg, c["alert_sound"])
             return

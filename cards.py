@@ -12,6 +12,8 @@ from tkinter import messagebox
 import psutil
 
 import anim
+import i18n
+from i18n import tr
 import macdata
 import mac_native
 from core import log_exception, IS_MAC, IS_WIN, no_activate, win_blur, apply_corners, NUM_FONT, TEXT_FONT, UI_FONT, LIGHT_FONT, bind_right_click, blend, fmt_bytes, format_date, save_config
@@ -437,7 +439,7 @@ class Card:
         size = size * self.m.cfg["card_text_scale"] / 100
         size = -max(1, round(size * self.k)) if IS_WIN else max(1, round(size))   # Windows : pixels, comme le dessin
         font = (NUM_FONT if num else TEXT_FONT, size, "bold" if bold else "normal")
-        return self.cv.create_text(x, y, text=s, fill=color or self.m.fg, font=font, anchor=anchor, **kw)
+        return self.cv.create_text(x, y, text=tr(s), fill=color or self.m.fg, font=font, anchor=anchor, **kw)
 
     def header(self, label, right=""):
         """Libellé discret en haut de la carte (et une information à droite, facultative)."""
@@ -459,6 +461,8 @@ class Card:
         self.set(unit_item, text=unit)
 
     def set(self, item, **kw):
+        if "text" in kw:
+            kw["text"] = tr(kw["text"])
         self.cv.itemconfigure(item, **kw)
 
     def fill(self, item, color):
@@ -613,7 +617,7 @@ class StorageCard(Card):
             return
         self.ring_.set(u.percent, self.m.warn if u.percent >= self.m.cfg["warn_threshold"] else self.m.accent)
         self.count(self.lbl, "disk", u.percent, lambda v: f"{v:.0f}%")
-        self.set(self.leg, text=f"{fmt_bytes(u.free)} libres")
+        self.set(self.leg, text=tr("{} libres").format(fmt_bytes(u.free)))
 
 
 class NetworkCard(Card):
@@ -702,7 +706,7 @@ class BatteryCard(Card):
         self.set(self.hdr_r, text="secteur" if b.power_plugged else "")
         bits = []
         if "health" in x:
-            bits.append(f"santé {x['health']:.0f} %")
+            bits.append(tr("santé {} %").format(f"{x['health']:.0f}"))
         if "cycles" in x:
             bits.append(f"{x['cycles']} cycles")
         self.set(self.l1, text=", ".join(bits) or ("Sur secteur" if b.power_plugged else "Sur batterie"))
@@ -824,7 +828,10 @@ class WeatherCard(Card):
         if bb:
             self.cv.coords(self.icon, bb[2] + 4 * self.kx, (bb[1] + bb[3]) / 2)
         self.set(self.icon, text=w["icon"])
-        self.set(self.lbl, text=w["label"])
+        label = w["label"]
+        if i18n.lang() == "en":   # description de la météo en anglais (codes Open-Meteo)
+            label = macdata.WEATHER_EN.get(w.get("code"), label).capitalize()
+        self.set(self.lbl, text=label)
         self.set(self.rng, text=f"{w['tmin']:.0f}°  /  {w['tmax']:.0f}°")
         for i, (h_, ic, t) in enumerate(self.hrs):
             h = w["hours"][i] if i < len(w["hours"]) else None

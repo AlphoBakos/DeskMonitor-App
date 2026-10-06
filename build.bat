@@ -12,7 +12,7 @@ rem Application (mode dossier : démarrage rapide, moins de fausses alertes anti
 rem Les fichiers intermédiaires restent dans build\ : seul l'installateur est à partager.
 python -m PyInstaller --noconfirm --clean --onedir --windowed --name DeskMonitor ^
   --distpath build\dist --workpath build\work --specpath build ^
-  --icon "%CD%\assets\DeskMonitor.ico" --add-data "%CD%\assets\wallpapers;wallpapers" ^
+  --icon "%CD%\assets\DeskMonitor.ico" --add-data "%CD%\assets\wallpapers;wallpapers" --add-data "%CD%\i18n_en.json;." ^
   --hidden-import pystray._win32 --collect-all winsdk --collect-all edge_tts desk_monitor.py || goto :err
 
 set ISCC=
