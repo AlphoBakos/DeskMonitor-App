@@ -1,6 +1,6 @@
 {
-  "_lisez-moi": "Identité du paquet Microsoft Store. Après avoir réservé le nom « DeskMonitor » dans Partner Center (Produit > Identité du produit), recopiez ici Package/Identity/Name, Package/Identity/Publisher et Package/Properties/PublisherDisplayName. Les valeurs ci-dessous ne servent qu'aux essais locaux.",
-  "name": "AlphoBakos.DeskMonitor",
-  "publisher": "CN=AlphoBakos",
+  "_lisez-moi": "Identité du paquet Microsoft Store, recopiée depuis Partner Center (Gestion des produits > Identité du produit). Ne pas modifier : le Store refuse un paquet dont l'identité ne correspond pas.",
+  "name": "AlphaOumarDiallo.DeskMonitor",
+  "publisher": "CN=2A8C9CDC-E4A0-46DD-B409-B7D62D52BFD5",
   "publisher_display": "Alpha Oumar Diallo"
 }
