@@ -300,7 +300,15 @@ def selftest(DeskWidget):
             core.set_autostart(before)
             if not on or core.is_autostart() != before:
                 raise RuntimeError(f"tâche de démarrage : activée={on}, remise={core.is_autostart()} (attendu {before})")
-            return "paquet MSIX, tâche de démarrage OK"
+            # fond d'écran sans écriture directe dans le registre : on réapplique l'image actuelle (aucun changement visible)
+            cur = wallpapers.current_wallpaper()
+            wp = "pas de fond actuel"
+            if cur and os.path.isfile(cur):
+                used = wallpapers.set_wallpaper(cur)
+                if not os.path.isfile(used) or "\\Packages\\" in used:
+                    raise RuntimeError(f"fond d'écran copié dans un dossier invisible pour Windows : {used}")
+                wp = "fond d'écran OK"
+            return f"paquet MSIX, tâche de démarrage OK, {wp}, configuration : {core.real_config_dir()}"
         step("version Microsoft Store", store_test)
 
         def english_test():

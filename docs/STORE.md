@@ -81,8 +81,7 @@ Partner Center demande pourquoi l'application utilise des fonctionnalités restr
 **runFullTrust :**
 > DeskMonitor est une application de bureau classique (Win32, Python) : elle affiche des widgets sur le bureau, lit les mesures du système (processeur, mémoire, disque, réseau, batterie) et range les raccourcis d'applications dans des panneaux.
 
-**unvirtualizedResources :**
-> DeskMonitor modifie à la demande de l'utilisateur des réglages de Windows : fond d'écran, écran de verrouillage, format de l'horloge, affichage des icônes du bureau. Il garde sa configuration dans %APPDATA%\DeskMonitor, partagée avec la version téléchargeable. Ces écritures doivent atteindre le vrai registre et les vrais dossiers de l'utilisateur, sinon elles n'auraient aucun effet.
+> **`unvirtualizedResources` a été refusée par le Store (soumission 1, 9 octobre 2026) et retirée du paquet depuis la 1.9.3.** Ne pas la redemander : le rapport précisait qu'une nouvelle demande sans éléments nouveaux serait refusée de la même façon.
 
 **Micro :**
 > Commandes vocales de l'assistant, reconnues hors ligne par le moteur de Windows. L'écoute continue est désactivée par défaut.
@@ -92,6 +91,10 @@ Partner Center demande pourquoi l'application utilise des fonctionnalités restr
 - **Mises à jour :** la version Store ne cherche pas de mise à jour sur GitHub. Le bouton « Vérifier maintenant » ouvre le Store.
 - **Lancement au démarrage :** la version Store passe par la « tâche de démarrage » du paquet. Elle reste désactivée tant que l'utilisateur ne l'active pas, comme le veulent les règles du Store.
 - Le bouton « Relancer en administrateur » est masqué.
+- **Écritures isolées par Windows** (pas de permission `unvirtualizedResources`) :
+  - la configuration (`%APPDATA%\DeskMonitor`) est redirigée vers le dossier privé du paquet (`…\Packages\<paquet>\LocalCache\Roaming\DeskMonitor`). L'application la relit normalement, et « Dossier de configuration » ouvre le vrai emplacement (`core.real_config_dir()`). Elle n'est pas partagée avec la version téléchargeable ;
+  - le fond d'écran appliqué est copié dans `Images\DeskMonitor`, puis posé avec l'API Windows des applications du Store (`UserProfilePersonalizationSettings`) ;
+  - réglages masqués parce qu'ils écrivent dans le registre (redirigé, donc sans effet) : disposition de l'image du fond d'écran, horloge 24 h de Windows, astuces de l'écran de verrouillage.
 - Le code détecte la version Store avec `core.is_packaged()`.
 
 ## 6. Essayer le paquet avant de l'envoyer

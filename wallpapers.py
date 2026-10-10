@@ -108,10 +108,46 @@ def current_wallpaper():
     return buf.value or None
 
 
+def _store_folder():
+    """Version Microsoft Store : %APPDATA% est redirigé vers un dossier privé que Windows ne voit pas ; l'image
+    appliquée est donc copiée dans Images\\DeskMonitor (dossier réel de l'utilisateur)."""
+    import actions
+    folder = Path(actions.known_folders().get("images") or Path.home() / "Pictures") / "DeskMonitor"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _set_wallpaper_winrt(path):
+    """API prévue pour les applications du Store (le registre est redirigé : SystemParametersInfo y écrirait en vain)."""
+    import asyncio
+    try:
+        from winsdk.windows.storage import StorageFile
+        from winsdk.windows.system.userprofile import UserProfilePersonalizationSettings
+        if not UserProfilePersonalizationSettings.is_supported():
+            return False
+
+        async def run():
+            f = await StorageFile.get_file_from_path_async(str(path))
+            return await UserProfilePersonalizationSettings.current.try_set_wallpaper_image_async(f)
+        return bool(asyncio.run(run()))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def set_wallpaper(path, fit="fill"):
     """Applique l'image comme fond d'écran du bureau. Retourne le chemin réellement utilisé."""
     if not (IS_WIN or IS_MAC):
         raise OSError("Fonds d'écran : Windows et macOS uniquement")
+    from core import is_packaged
+    if IS_WIN and is_packaged():
+        dst = _store_folder() / ("fond-actuel" + Path(path).suffix.lower())
+        if Path(path).resolve() != dst.resolve():
+            shutil.copy2(path, dst)
+        if _set_wallpaper_winrt(dst):
+            return str(dst)
+        if not ctypes.windll.user32.SystemParametersInfoW(0x0014, 0, str(dst), 0x01 | 0x02):
+            raise OSError("Windows a refusé de changer le fond d'écran")
+        return str(dst)
     APPLIED_DIR.mkdir(parents=True, exist_ok=True)
     # copie dans le dossier de l'application : l'image reste valable même si l'original disparaît.
     # Sur Mac, un nom différent à chaque fois : sinon le Finder garde l'ancienne image en cache.

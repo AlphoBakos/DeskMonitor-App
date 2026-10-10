@@ -16,10 +16,6 @@
     <DisplayName>DeskMonitor</DisplayName>
     <PublisherDisplayName>{PUBLISHER_DISPLAY}</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
-    <!-- DeskMonitor règle des paramètres de Windows (fond d'écran, horloge 24 h…) et garde sa configuration dans
-         %APPDATA%\DeskMonitor : ces écritures doivent atteindre le vrai registre et les vrais dossiers. -->
-    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
-    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
   </Properties>
 
   <Dependencies>
@@ -60,7 +56,6 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="unvirtualizedResources" />
     <DeviceCapability Name="microphone" />
   </Capabilities>
 </Package>

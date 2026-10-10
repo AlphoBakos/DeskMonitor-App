@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.2"
+APP_VERSION = "1.9.3"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -622,6 +622,20 @@ def is_packaged():
 
 
 STARTUP_TASK_ID = "DeskMonitorStartup"   # identique à AppxManifest.xml
+
+
+def real_config_dir():
+    """Dossier où se trouve vraiment la configuration. Version Store : Windows redirige %APPDATA% vers le dossier
+    privé du paquet (…\\Packages\\<paquet>\\LocalCache\\Roaming) ; l'Explorateur doit ouvrir celui-là."""
+    if is_packaged():
+        try:
+            from winsdk.windows.storage import ApplicationData
+            redirected = Path(ApplicationData.current.local_cache_folder.path) / "Roaming" / APP_NAME
+            if redirected.exists():
+                return redirected
+        except Exception:  # noqa: BLE001
+            pass
+    return CONFIG_DIR
 
 
 def _wait(op):

@@ -23,7 +23,7 @@ import profiles as prof
 import wallpapers
 from core import (IS_MAC, ALIGNS, APP_NAME, APP_VERSION, CONFIG_DIR, DATE_CASES, DATE_FORMATS, DEFAULTS, IS_WIN,
                   UI_FONT, NUM_FONT, TEXT_FONT, ensure_visible, open_path,
-                  SHOW_ITEMS, blend, format_date, is_admin, is_autostart, is_packaged, make_icon_image,
+                  SHOW_ITEMS, blend, format_date, is_admin, is_autostart, is_packaged, make_icon_image, real_config_dir,
                   set_autostart)
 
 # palette de la fenêtre (indépendante du thème des widgets pour rester toujours lisible)
@@ -763,7 +763,7 @@ class SettingsWindow:
         return [
             ("Collection", [X(self._wallpaper_gallery)]),
             ("Options", [
-                C("wallpaper_fit", "Disposition de l'image", wallpapers.FIT_LABELS),
+                C("wallpaper_fit", "Disposition de l'image", wallpapers.FIT_LABELS, cond=not is_packaged()),
                 T("wallpaper_lock_too", "Utiliser aussi pour l'écran de verrouillage",
                   "Avec la date et le message choisis dans « Écran de verrouillage »"),
             ]),
@@ -810,9 +810,11 @@ class SettingsWindow:
                 T("lock_enabled", "Gérer l'écran de verrouillage avec DeskMonitor",
                   "Garde la date à jour chaque jour"),
                 T(None, "Horloge en 24 heures", "Réglage de Windows : s'applique aussi à la barre des tâches",
-                  cond=IS_WIN, get=lockscreen.clock_24h, set=lambda v: lockscreen.set_clock_24h(v)),
+                  cond=IS_WIN and not is_packaged(), get=lockscreen.clock_24h,
+                  set=lambda v: lockscreen.set_clock_24h(v)),
                 T(None, "Astuces et publicités de Windows", "Textes « Le saviez-vous ? », suggestions…",
-                  cond=IS_WIN, get=lockscreen.tips_enabled, set=lambda v: lockscreen.set_tips(v)),
+                  cond=IS_WIN and not is_packaged(), get=lockscreen.tips_enabled,
+                  set=lambda v: lockscreen.set_tips(v)),
             ]),
         ]
 
@@ -1227,7 +1229,7 @@ class SettingsWindow:
 
     def _open_config(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        open_path(CONFIG_DIR)
+        open_path(real_config_dir())
 
     def _reset(self):
         if not messagebox.askyesno(APP_NAME, "Rétablir tous les réglages par défaut ?\n"
