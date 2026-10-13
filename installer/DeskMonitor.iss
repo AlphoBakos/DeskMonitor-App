@@ -62,14 +62,27 @@ Filename: "{sys}\taskkill.exe"; Parameters: "/im {#AppExe} /f"; Flags: runhidden
 Filename: "{app}\{#AppExe}"; Parameters: "--show-icons"; Flags: runhidden waituntilterminated; RunOnceId: "ShowIcons"
 
 [Code]
-// Ferme l'application si elle tourne (installation par-dessus / mise à jour).
+// Ferme l'application si elle tourne (installation par-dessus / mise à jour), et vérifie qu'elle est vraiment
+// fermée AVANT de toucher aux fichiers : une instance lancée en administrateur résiste à taskkill, et
+// l'installation supprimait alors l'ancien dossier sans pouvoir copier le nouveau (application cassée).
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  Code: Integer;
+  Code, I: Integer;
 begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/im {#AppExe} /f', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Sleep(800);
-  Result := '';
+  for I := 1 to 40 do
+  begin
+    if not CheckForMutexes('Local\DeskMonitor_SingleInstance') then
+    begin
+      Sleep(500);
+      Result := '';
+      exit;
+    end;
+    Sleep(250);
+  end;
+  Result := 'DeskMonitor est encore ouvert et n''a pas pu être fermé automatiquement ' +
+            '(il a peut-être été lancé en administrateur). Quittez-le (icône près de l''horloge › Quitter), ' +
+            'puis relancez l''installation. Rien n''a été modifié.';
 end;
 
 // Propose de supprimer aussi les réglages à la désinstallation.
