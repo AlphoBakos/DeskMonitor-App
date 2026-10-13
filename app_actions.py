@@ -54,7 +54,15 @@ class ActionsMixin:
         repo = self.cfg.get("update_repo") or DEFAULTS["update_repo"]
         return f"https://github.com/{repo}/issues/new?" + urlencode({"template": template, **fields})
 
-    def report_problem(self):
+    def offer_crash_report(self):
+        """Après un plantage : demande l'accord avant d'ouvrir le formulaire pré-rempli."""
+        import crash
+        text = crash.pending()
+        crash.clear()   # proposé une seule fois
+        if text and messagebox.askyesno(APP_NAME, "DeskMonitor s'est fermé à cause d'un problème la dernière fois.\n\nVoulez-vous envoyer un rapport pour nous aider à le corriger ? Le formulaire s'ouvrira dans votre navigateur : vous pourrez le relire avant de l'envoyer.", parent=self.root):
+            self.report_problem(crash=text)
+
+    def report_problem(self, crash=""):
         """Ouvre le formulaire « Signaler un problème » de GitHub, pré-rempli (version, système, dernières
         erreurs). Rien n'est envoyé : la personne relit puis valide elle-même dans son navigateur."""
         import platform
@@ -65,6 +73,8 @@ class ActionsMixin:
             log = "\n".join(lines[-40:])[-2500:]
         except OSError:
             pass
+        if crash:   # le plantage d'abord, puis la fin du journal (l'adresse du formulaire reste assez courte)
+            log = f"Plantage :\n{crash[-1800:]}\n\nJournal :\n{log[-900:]}"
         home = str(Path.home())
         log = log.replace(home, "~").replace(home.replace("\\", "/"), "~")   # pas de nom d'utilisateur
         system = f"{platform.system()} {platform.release()} ({platform.machine()})"

@@ -930,6 +930,7 @@ class SettingsWindow:
             ("Comportement", [
                 C("voice_lang", "Langue", {"fr": "Français", "en": "English"},
                   "Interface, voix et réponses de l'assistant"),
+                T("crash_ask", "Proposer un rapport après un plantage", "Au lancement suivant, DeskMonitor vous demande si vous voulez l'envoyer"),
                 T("game_mode", "Mode jeu",
                   "Quand un jeu ou une vidéo est en plein écran : widgets masqués et assistant en pause", cond=IS_WIN),
                 T("eco_battery", "Économiser la batterie",

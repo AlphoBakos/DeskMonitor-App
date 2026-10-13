@@ -1281,6 +1281,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.tray.stop()
         self.organizer.shutdown()
         save_config(self.cfg)
+        import crash
+        crash.closed_normally()
         self.root.destroy()
 
 
@@ -1347,8 +1349,15 @@ def main():
         except OSError:
             pass
         return
-    # toute erreur (y compris dans l'interface) est consignée dans erreurs.log
-    sys.excepthook = lambda *exc: log_exception("erreur non gérée", exc)
+    # toute erreur (y compris dans l'interface) est consignée dans erreurs.log ; un plantage est aussi noté
+    # pour proposer un rapport au lancement suivant
+    import crash
+    crash.install()
+
+    def fatal(*exc):
+        log_exception("erreur non gérée", exc)
+        crash.record_exc(exc)
+    sys.excepthook = fatal
     threading.excepthook = lambda a: log_exception(f"thread {a.thread.name if a.thread else ''}",
                                                    (a.exc_type, a.exc_value, a.exc_traceback))
     root = tk.Tk()
@@ -1363,6 +1372,11 @@ def main():
         app.save()
     app._migrate()
     app.voice_ready = True
+    if crash.pending():
+        if app.cfg.get("crash_ask", True):
+            root.after(7000, app.offer_crash_report)
+        else:
+            crash.clear()
     root.after(8000, app.prefetch_voice)
     if not app.cfg["onboarded"]:   # premier lancement : prénom, langue, nom de l'assistant
         import onboarding

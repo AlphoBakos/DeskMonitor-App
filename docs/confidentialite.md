@@ -43,6 +43,8 @@ Quand vous demandez une recherche (« cherche… ») ou un site, DeskMonitor ouv
 
 Le bouton « Signaler un problème » ouvre dans votre navigateur un formulaire GitHub pré-rempli : version, système et dernières erreurs, sans votre nom d'utilisateur. **Rien n'est envoyé tant que vous ne l'avez pas relu et validé vous-même.** Ce que vous publiez sur GitHub est alors public.
 
+Après un plantage, DeskMonitor le note sur l'ordinateur (`plantage.txt`) et, au lancement suivant, **vous demande** si vous voulez envoyer un rapport. Si vous acceptez, le même formulaire s'ouvre, pré-rempli avec la description technique du plantage : vous le relisez avant de l'envoyer. Si vous refusez, la note est effacée. Vous pouvez couper cette question dans Paramètres > Général.
+
 ## Enfants
 
 DeskMonitor ne s'adresse pas spécifiquement aux enfants et ne collecte aucune donnée personnelle.

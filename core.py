@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.8"
+APP_VERSION = "1.9.9"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -500,6 +500,7 @@ DEFAULTS = {
     "mac_theme": "auto",         # auto | dark | light : thème de TOUS les widgets
     "accent_mode": "system",     # system (couleur du système) | custom (accent_color) | wallpaper (fond d'écran)
     "animations": True,          # apparitions, survols, glissements et compteurs animés
+    "crash_ask": True,           # après un plantage : proposer d'envoyer un rapport (jamais envoyé sans accord)
     "game_mode": True,           # jeu / vidéo en plein écran : widgets masqués, écoute vocale en pause
     "eco_battery": False,        # sur batterie : mesures moins fréquentes (les animations ne changent pas)
     "org_fit": {},               # adaptations automatiques des panneaux à un petit écran (pas des choix de l'utilisateur)         # sur batterie : animations coupées, mesures moins fréquentes
