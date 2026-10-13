@@ -582,5 +582,8 @@
  "Activer l'assistant vocal": "Enable the voice assistant",
  "Écoute, réponses et annonces vocales. Désactivé : DeskMonitor ne parle plus et n'utilise plus le micro.": "Listening, replies and spoken announcements. Off: DeskMonitor no longer speaks or uses the microphone.",
  "L'assistant vocal est désactivé (Paramètres › Assistant).": "The voice assistant is off (Settings › Assistant).",
- "mises à jour automatiques": "automatic updates"
+ "mises à jour automatiques": "automatic updates",
+ "Économiser la batterie": "Save battery",
+ "Sur un portable débranché : animations coupées et mesures moins fréquentes": "On an unplugged laptop: animations off and less frequent measurements",
+ "Écran trop petit pour tout afficher : les panneaux sont réduits automatiquement (moins de lignes, icônes plus petites). Vos réglages reviennent sur un écran plus grand.": "Screen too small to show everything: panels are reduced automatically (fewer rows, smaller icons). Your settings come back on a larger screen."
 }

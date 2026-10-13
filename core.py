@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.4"
+APP_VERSION = "1.9.5"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -498,8 +498,10 @@ DEFAULTS = {
     "card_hotkey": "cmd+alt+d" if IS_MAC else "ctrl+alt+d",  # afficher / masquer les widgets
     "card_system_accent": True,  # couleur d'accentuation de macOS
     "mac_theme": "auto",         # auto | dark | light : thème de TOUS les widgets
-    "accent_mode": "system",
-    "animations": True,          # apparitions, survols, glissements et compteurs animés     # system (couleur du système) | custom (accent_color) | wallpaper (fond d'écran)
+    "accent_mode": "system",     # system (couleur du système) | custom (accent_color) | wallpaper (fond d'écran)
+    "animations": True,          # apparitions, survols, glissements et compteurs animés
+    "eco_battery": True,
+    "org_fit": {},               # adaptations automatiques des panneaux à un petit écran (pas des choix de l'utilisateur)         # sur batterie : animations coupées, mesures moins fréquentes
     "weather_city": "",          # vide = d'après l'adresse IP
     "quick_note": "",
     "native_alerts": True,       # notifications du centre de notifications macOS

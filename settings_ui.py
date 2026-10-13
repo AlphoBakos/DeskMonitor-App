@@ -745,6 +745,9 @@ class SettingsWindow:
                 T("org_double_click", "Ouvrir avec un double-clic", "Évite les ouvertures accidentelles"),
             ]),
             ("Disposition", [
+                *([self._note("Écran trop petit pour tout afficher : les panneaux sont réduits automatiquement "
+                              "(moins de lignes, icônes plus petites). Vos réglages reviennent sur un écran plus grand.")]
+                  if self.cfg.get("org_fit") else []),
                 N("org_columns", "Icônes par ligne", 1, 12),
                 N("org_max_rows", "Lignes visibles par panneau", 0, 20, 1, "",
                   "Au-delà, la molette fait défiler le panneau (0 = tout afficher)"),
@@ -927,6 +930,8 @@ class SettingsWindow:
             ("Comportement", [
                 C("voice_lang", "Langue", {"fr": "Français", "en": "English"},
                   "Interface, voix et réponses de l'assistant"),
+                T("eco_battery", "Économiser la batterie",
+                  "Sur un portable débranché : animations coupées et mesures moins fréquentes"),
                 T(None, "Lancer au démarrage de Windows" if IS_WIN else "Lancer à l'ouverture de session", cond=IS_WIN or IS_MAC,
                   get=is_autostart, set=lambda v: set_autostart(v)),
                 T(None, "Afficher les widgets", "Aussi accessible depuis l'icône de la zone de notification",

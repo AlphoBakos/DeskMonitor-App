@@ -743,10 +743,14 @@ class DesktopOrganizer:
                 if groups.get(n) and self.cat_state(n) == "show"]
 
     # ----- construction ------------------------------------------------------
+    def opt(self, key):
+        """Réglage effectif d'un panneau : celui de l'utilisateur, réduit si l'écran est trop petit (org_fit)."""
+        return self.cfg.get("org_fit", {}).get(key, self.cfg[key])
+
     def _fence_signature(self, cat, items):
         """Empreinte d'un panneau : il n'est redessiné que si elle change."""
         c = self.cfg
-        return (cfg_signature(c, STYLE_KEYS + ("org_icon", "org_columns", "org_max_rows", "org_labels")),
+        return (cfg_signature(c, STYLE_KEYS + ("org_icon", "org_columns", "org_max_rows", "org_labels", "org_fit")),
                 json.dumps(c["org_cat_style"].get(cat), sort_keys=True), cat in c["org_collapsed"],
                 tuple((it["path"], it["name"]) for it in items))
 
@@ -837,7 +841,7 @@ class DesktopOrganizer:
         win.after(150, finish_style)   # le verre ne s'applique qu'une fois la fenêtre affichée
 
         scale = self._scale()
-        px = int(int(c["org_icon"]) * scale)
+        px = int(int(self.opt("org_icon")) * scale)
         tile_w = max(px + int(24 * scale), int(84 * scale))
         fam = TEXT_FONT
         ts = max(8, round(10 * int(c["card_text_scale"]) / 100))
@@ -869,9 +873,9 @@ class DesktopOrganizer:
         if collapsed:
             return
         tk.Frame(outer, bg=track, height=1).pack(fill="x", padx=14)   # filet discret, comme les cartes
-        cols = max(1, int(c["org_columns"]))
+        cols = max(1, int(self.opt("org_columns")))
         n_rows = -(-len(items) // cols)
-        max_rows = int(c["org_max_rows"])
+        max_rows = int(self.opt("org_max_rows"))
         scrolling = 0 < max_rows < n_rows
         canvas = None
         if scrolling:
@@ -914,12 +918,12 @@ class DesktopOrganizer:
                 emoji = "📁" if it["is_dir"] else "🔗" if it["ext"] in APP_EXT else "📄"
                 ico = tk.Label(tile, text=emoji, bg=bg, fg=fg, font=(fam, max(12, int(px / scale * 0.55))))
             ico.pack(pady=(2, 0))
-            if c["org_labels"]:
+            if self.opt("org_labels"):
                 # hauteur fixe de 2 lignes : toutes les tuiles ont la même taille
                 tk.Label(tile, text=self._two_lines(it["name"], f_tile, tile_w - 6), bg=bg, fg=fg,
                          font=f_tile, justify="center", width=0, height=2, anchor="n").pack()
             # largeur fixe des tuiles : une bande invisible
-            tk.Frame(tile, width=(tile_w if c["org_labels"] else px + int(16 * scale)) - 4,
+            tk.Frame(tile, width=(tile_w if self.opt("org_labels") else px + int(16 * scale)) - 4,
                      height=0, bg=bg).pack()
             parts = (tile, *tile.winfo_children())
             tile._fx = self._tile_fx(tile, parts, ico, img, it["path"], px, bg, cm.bg, hover, acc)
@@ -1085,8 +1089,68 @@ class DesktopOrganizer:
             self.app.save()
         return moved
 
+    # étapes d'adaptation à un petit écran, de la plus discrète à la plus forte
+    FIT_LEVELS = (
+        {},
+        {"org_max_rows": 2},
+        {"org_max_rows": 1},
+        {"org_max_rows": 2, "org_columns": 3},
+        {"org_max_rows": 1, "org_columns": 3},
+        {"org_max_rows": 1, "org_columns": 3, "org_icon": 40},
+        {"org_max_rows": 1, "org_columns": 3, "org_icon": 32, "org_labels": False},
+    )
+
+    def _reduces(self, key, value):
+        """Vrai si la valeur réduit vraiment le réglage de l'utilisateur (on n'agrandit jamais rien)."""
+        cur = self.cfg[key]
+        if key == "org_max_rows":
+            return int(cur) == 0 or int(value) < int(cur)
+        if key == "org_labels":
+            return bool(cur) and not value
+        return int(value) < int(cur)
+
+    def _masonry(self, area, fences):
+        """Positions en colonnes (chaque panneau dans la colonne la moins remplie) et bas de la colonne la plus haute."""
+        left, y0, right, bottom, gap = area
+        col_w = max(win.winfo_reqwidth() for _, win in fences)
+        n_cols = max(1, (right - left - gap) // (col_w + gap))
+        heights, spots = [y0] * n_cols, []
+        for cat, win in fences:
+            i = heights.index(min(heights))
+            x, y = left + gap + i * (col_w + gap), heights[i]
+            spots.append((cat, win, i, x, y))
+            heights[i] = y + win.winfo_reqheight() + gap
+        return spots, max(heights) - gap
+
+    def _fit_to_screen(self, area, fences):
+        """Panneaux trop hauts pour l'écran : moins de lignes, panneaux plus étroits, icônes plus petites…
+        puis, en dernier recours, les panneaux qui ne tiennent pas sont repliés (un clic les rouvre)."""
+        bottom = area[3]
+        for level in self.FIT_LEVELS:
+            fit = {k: v for k, v in level.items() if self._reduces(k, v)}
+            if fit != self.cfg.get("org_fit", {}):
+                self.cfg["org_fit"] = fit
+                self.build()
+                fences = [(cat, self.fences[cat]) for cat, _ in self.categories() if cat in self.fences]
+                for _, win in fences:
+                    win.update_idletasks()
+            _, low = self._masonry(area, fences)
+            if low <= bottom:
+                return fences
+        # toujours trop haut : on replie les panneaux qui débordent (du dernier au premier)
+        for cat, win, _, _, _ in reversed(self._masonry(area, fences)[0]):
+            if self._masonry(area, fences)[1] <= bottom:
+                break
+            if cat not in self.cfg["org_collapsed"]:
+                self.cfg["org_collapsed"].append(cat)
+                self.build()
+                fences = [(c2, self.fences[c2]) for c2, _ in self.categories() if c2 in self.fences]
+                for _, w in fences:
+                    w.update_idletasks()
+        return fences
+
     def auto_layout(self, only=None):
-        """Range les panneaux en colonnes, à gauche de l'écran, sous l'heure/la date séparées."""
+        """Range les panneaux en colonnes à côté des cartes ; sur un petit écran, ils s'adaptent pour tenir."""
         if not self.fences:
             return
         left, top, right, bottom = self._work_area()
@@ -1116,17 +1180,14 @@ class DesktopOrganizer:
         fences = [(cat, self.fences[cat]) for cat, _ in self.categories() if cat in self.fences]
         for _, win in fences:
             win.update_idletasks()
-        col_w = max(win.winfo_reqwidth() for _, win in fences)
-        n_cols = max(1, (right - left - gap) // (col_w + gap))
-        heights = [y0] * n_cols
-        # « maçonnerie » : chaque panneau va dans la colonne la moins remplie
-        for cat, win in fences:
-            i = heights.index(min(heights))
-            x, y = left + gap + i * (col_w + gap), heights[i]
+        area = (left, y0, right, bottom - gap, gap)
+        if only is None:   # rangement complet : les panneaux s'adaptent à la taille de l'écran
+            fences = self._fit_to_screen(area, fences)
+        spots, _ = self._masonry(area, fences)
+        for cat, win, i, x, y in spots:
             if only is None or cat in only:
                 self.app.anim.glide(win, x, y, 520 + 40 * i)
                 self.cfg["positions"][f"fence:{cat}"] = [x, y]
-            heights[i] = y + win.winfo_reqheight() + gap
         self.app.save()
 
     # ----- interactions : titre --------------------------------------------------

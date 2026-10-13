@@ -95,7 +95,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.cfg = load_config()
         i18n.install()                      # textes de l'interface traduits automatiquement
         i18n.set_lang(self.cfg.get("voice_lang", "fr"))
-        self.anim = Animator(root, lambda: self.cfg.get("animations", True))
+        self.anim = Animator(root, lambda: self.cfg.get("animations", True) and not self.eco_active())
         self.rows = {}
         self._jobs = queue.Queue()
         self._busy = False
@@ -577,16 +577,24 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             log_exception("profils automatiques")
         self.root.after(60000, self._context_loop)
 
+    def eco_active(self):
+        """Économie de batterie : portable débranché (vérifié au plus toutes les 10 s)."""
+        now = time.time()
+        if now - getattr(self, "_eco_t", 0) > 10:
+            b = self._battery() if self.cfg.get("eco_battery", True) else None
+            self._eco, self._eco_t = bool(b is not None and not b.power_plugged), now
+        return self._eco
+
     def _cards_loop(self):
-        """Animation des jauges (20 images/s) et suivi du thème clair/sombre de macOS."""
+        """Mouvements continus des cartes (10 images/s ; 4 en économie de batterie) et suivi du thème."""
         try:
             self.cards.animate()
             self._cards_n = getattr(self, "_cards_n", 0) + 1
-            if self._cards_n % 100 == 0:
+            if self._cards_n % 30 == 0:
                 self.cards.follow_system()
         except Exception:  # noqa: BLE001
             pass
-        self.root.after(33, self._cards_loop)
+        self.root.after(250 if self.eco_active() else 100, self._cards_loop)
 
     # ----- Position / déplacement -------------------------------------------
     def _screen_bounds(self):
@@ -984,7 +992,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
     def _clock_loop(self):
         try:
             self.update_clock()
-            if int(time.time()) % 2 == 0:
+            if int(time.time()) % 5 == 0:   # remise en ordre des fenêtres : toutes les 5 s suffisent
                 self._keep_on_desktop()
         except tk.TclError:
             pass
@@ -1029,7 +1037,12 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
                 if not self._on_screen(win):
                     win.geometry("+40+40") if k == "clock" else win.geometry("+40+160")
             misplaced = [cat for cat, win in self.organizer.fences.items() if not self._on_screen(win)]
-            if misplaced:
+            bottom = self._work_area()[3]
+            overflow = [cat for cat, win in self.organizer.fences.items()
+                        if win.winfo_y() + win.winfo_height() > bottom + 8]   # panneau coupé en bas de l'écran
+            if overflow:
+                self.organizer.auto_layout()          # rangement complet : les panneaux s'adaptent pour tenir
+            elif misplaced:
                 self.organizer.auto_layout(only=misplaced)
             if not self.cfg["widgets_hidden"]:
                 for w in self.all_windows():
@@ -1047,7 +1060,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             self._tray_tooltip()
         except Exception:
             pass
-        self.root.after(max(250, int(self.cfg["refresh_ms"])), self._stats_loop)
+        delay = max(250, int(self.cfg["refresh_ms"]))
+        self.root.after(max(delay, 2000) if self.eco_active() else delay, self._stats_loop)
 
     def _tray_tooltip(self):
         """Windows : équivalent de la barre des menus du Mac, dans l'infobulle de l'icône de notification."""
