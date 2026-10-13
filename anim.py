@@ -51,7 +51,7 @@ def mix(c1, c2, t):
 #  Moteur
 # --------------------------------------------------------------------------- #
 class Animator:
-    FRAME_MS = 20   # 50 images/s, seulement pendant une animation
+    FRAME_MS = 15   # ~60 images/s, seulement pendant une animation
 
     def __init__(self, root, enabled=lambda: True):
         self.root = root

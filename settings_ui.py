@@ -931,7 +931,7 @@ class SettingsWindow:
                 C("voice_lang", "Langue", {"fr": "Français", "en": "English"},
                   "Interface, voix et réponses de l'assistant"),
                 T("eco_battery", "Économiser la batterie",
-                  "Sur un portable débranché : animations coupées et mesures moins fréquentes"),
+                  "Sur un portable débranché : mesures moins fréquentes (les animations ne changent pas)"),
                 T(None, "Lancer au démarrage de Windows" if IS_WIN else "Lancer à l'ouverture de session", cond=IS_WIN or IS_MAC,
                   get=is_autostart, set=lambda v: set_autostart(v)),
                 T(None, "Afficher les widgets", "Aussi accessible depuis l'icône de la zone de notification",

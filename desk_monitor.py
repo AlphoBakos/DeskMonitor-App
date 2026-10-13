@@ -95,7 +95,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.cfg = load_config()
         i18n.install()                      # textes de l'interface traduits automatiquement
         i18n.set_lang(self.cfg.get("voice_lang", "fr"))
-        self.anim = Animator(root, lambda: self.cfg.get("animations", True) and not self.eco_active())
+        self.anim = Animator(root, lambda: self.cfg.get("animations", True))
         self.rows = {}
         self._jobs = queue.Queue()
         self._busy = False
@@ -586,15 +586,15 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         return self._eco
 
     def _cards_loop(self):
-        """Mouvements continus des cartes (10 images/s ; 4 en économie de batterie) et suivi du thème."""
+        """Mouvements continus des cartes (30 images/s) et suivi du thème clair/sombre."""
         try:
             self.cards.animate()
             self._cards_n = getattr(self, "_cards_n", 0) + 1
-            if self._cards_n % 30 == 0:
+            if self._cards_n % 100 == 0:
                 self.cards.follow_system()
         except Exception:  # noqa: BLE001
             pass
-        self.root.after(250 if self.eco_active() else 100, self._cards_loop)
+        self.root.after(33, self._cards_loop)
 
     # ----- Position / déplacement -------------------------------------------
     def _screen_bounds(self):
@@ -724,6 +724,10 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             if c.get("update_repo", "") in ("", "AlphoBakos/DeskMonitor"):
                 c["update_repo"] = DEFAULTS["update_repo"]
             c["migrated"] = 4
+            save_config(c)
+        if c.get("migrated", 0) < 5:   # 1.9.7 : économie de batterie désactivée par défaut
+            c["eco_battery"] = False
+            c["migrated"] = 5
             save_config(c)
 
     def _start_drag(self, e):

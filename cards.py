@@ -81,7 +81,7 @@ class Ring:
     def step(self):
         d = self.target - self.value
         if abs(d) >= 0.05:
-            self.value += d * 0.4    # ressort amorti (10 images/s)
+            self.value += d * 0.16   # ressort amorti (30 images/s)
         exact = self.value / 100 * self.N
         n = int(exact)
         frac = round((exact - n) * 4) / 4   # le trait suivant s'allume progressivement (4 nuances)
@@ -395,8 +395,7 @@ class Card:
         """Compteur animé : le nombre défile jusqu'à sa nouvelle valeur."""
         v0 = self._nums.get(key)
         self._nums[key] = value
-        # petit écart (le cas de presque chaque seconde) : simple mise à jour, sans animation
-        if v0 is None or abs(value - v0) < 3 or fmt(v0) == fmt(value):
+        if v0 is None or abs(value - v0) < 0.5:
             self.set(item, text=fmt(value))
             return
         self.app.anim.play(("num", self.title, key), ms, lambda p: self.set(item, text=fmt(anim.lerp(v0, value, p))),
@@ -595,7 +594,7 @@ class SystemCard(Card):
         if tgt is None:
             return
         cur = getattr(self, "_ram_v", 0.0)
-        cur += (tgt - cur) * 0.4
+        cur += (tgt - cur) * 0.16
         self._ram_v = cur
         exact = cur / 100 * len(self.rule)
         n, frac = int(exact), round((exact - int(exact)) * 4) / 4
@@ -659,7 +658,7 @@ class NetworkCard(Card):
             return
         self._top = getattr(self, "_top", self._top_t)
         if abs(self._top_t - self._top) > self._top_t * 0.004:
-            self._top += (self._top_t - self._top) * 0.3
+            self._top += (self._top_t - self._top) * 0.12
         else:
             self._top = self._top_t
         period = max(0.25, self.m.cfg["refresh_ms"] / 1000)
@@ -758,12 +757,12 @@ class MusicCard(Card):
         hs = getattr(self, "_eq_h", [2.0] * len(self.eq))
         tg = getattr(self, "_eq_t", [2.0] * len(self.eq))
         self._phase += 1
-        if playing:   # nouvelles cibles à chaque image (10 par seconde), comme un vrai vumètre
+        if playing and self._phase % 4 == 0:   # nouvelles cibles ~8 fois par seconde, comme un vrai vumètre
             tg = [3 + 9 * abs(math.sin(self._phase * 0.21 + i * 1.7)) * random.uniform(0.55, 1.0)
                   for i in range(len(self.eq))]
         elif not playing:
             tg = [2.0] * len(self.eq)
-        hs = [h + (t - h) * (0.8 if t > h else 0.4) for h, t in zip(hs, tg)]   # monte vite, retombe lentement
+        hs = [h + (t - h) * (0.45 if t > h else 0.18) for h, t in zip(hs, tg)]   # monte vite, retombe lentement
         if hs == getattr(self, "_eq_h", None):
             return
         self._eq_h, self._eq_t = hs, tg
@@ -887,7 +886,7 @@ class ProcessCard(Card):
         if not tg:
             return
         cur = getattr(self, "_bar_v", [0.0] * self.n)
-        new = [c + (t - c) * 0.45 for c, t in zip(cur, tg)]
+        new = [c + (t - c) * 0.2 for c, t in zip(cur, tg)]
         if all(abs(a - b) < 0.05 for a, b in zip(new, cur)):
             return
         self._bar_v = new
