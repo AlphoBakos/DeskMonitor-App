@@ -31,6 +31,8 @@ class VoiceMixin:
 
     def speak(self, text, urgent=False, force=False):
         c = self.cfg
+        if not c.get("assistant_on", True):   # assistant vocal désactivé : DeskMonitor ne parle plus
+            return
         if not (force or self._voice_allowed()):
             return
         lang = c["voice_lang"]

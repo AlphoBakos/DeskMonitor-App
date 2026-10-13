@@ -406,7 +406,6 @@
  "Nom de l'assistant": "Assistant's name",
  "Le nom qu'il se donne en se présentant": "The name it uses when introducing itself",
  "Ce qu'il sait faire": "What it can do",
- "Ouvrir une application : « ouvre Chrome », « lance Excel ».\nOuvrir un dossier ou un fichier : « ouvre le dossier téléchargements », « ouvre le fichier rapport ».\nChercher sur internet : « cherche recette de crêpes », « recherche le match du PSG sur YouTube ».\nEntretien : « libère la mémoire », « nettoie le cache », « vide le cache DNS », « optimise le PC ».\nEt toujours : le point, la batterie, la météo, l'agenda, l'heure, la musique, ranger le bureau.\nAvec l'activation par la voix, dites son nom d'abord : « Bakos, ouvre Chrome ».": "Open an app: \"open Chrome\", \"launch Excel\".\nOpen a folder or file: \"open the downloads folder\", \"open the file report\".\nSearch the web: \"search for pancake recipe\", \"look up the football score on YouTube\".\nMaintenance: \"free up memory\", \"clean the cache\", \"clear the DNS cache\", \"speed up the computer\".\nAnd also: summary, battery, weather, calendar, time, music, tidy the desktop.\nWith voice activation, say its name first: \"Jarvis, open Chrome\".",
  "Commandes vocales": "Voice commands",
  "Raccourci pour parler": "Shortcut to talk",
  "Appuyez, puis parlez : « le point », « ma batterie », « la météo », « mes rendez-vous », « qui ralentit l'ordinateur », « pause »…": "Press it, then speak: \"summary\", \"my battery\", \"the weather\", \"my meetings\", \"what's slowing the computer\", \"pause\"…",
@@ -518,7 +517,6 @@
  "Réinitialiser…": "Reset…",
  "Aide et retours": "Help and feedback",
  "Signaler un problème": "Report a problem",
- "Ouvre un formulaire pré-rempli (version, système, dernières erreurs) sur GitHub. Rien n'est envoyé tant que vous ne l'avez pas relu et validé.": "Opens a pre-filled form (version, system, latest errors) on GitHub. Nothing is sent until you have reviewed and submitted it.",
  "Signaler…": "Report…",
  "Proposer une idée": "Suggest an idea",
  "Une fonction qui vous manque, une amélioration": "A feature you're missing, an improvement",
@@ -577,5 +575,12 @@
  "Auto (3 s)": "Auto (3 s)",
  "Faisons connaissance": "Let's get acquainted",
  "Bureau rangé": "Desktop tidied",
- "Le CPU est à {} % depuis plus de {} s.\nCliquez pour voir les programmes gourmands.": "The CPU has been at {}% for more than {} s.\nClick to see the heaviest programs."
+ "Le CPU est à {} % depuis plus de {} s.\nCliquez pour voir les programmes gourmands.": "The CPU has been at {}% for more than {} s.\nClick to see the heaviest programs.",
+ "Ouvrir une application : « ouvre Chrome », « lance Excel ».\nOuvrir un dossier ou un fichier : « ouvre le dossier téléchargements », « ouvre le fichier rapport ».\nChercher sur internet : « cherche recette de crêpes », « recherche le match du PSG sur YouTube ».\nEntretien : « libère la mémoire », « nettoie le cache », « vide le cache DNS », « optimise le PC ».\nEt toujours : le point, la batterie, la météo, l'agenda, l'heure, la musique, ranger le bureau.\nAvec l'activation par la voix, dites son nom d'abord : « [nom], ouvre Chrome ».": "Open an app: \"open Chrome\", \"launch Excel\".\nOpen a folder or file: \"open the downloads folder\", \"open the file report\".\nSearch the web: \"search for pancake recipe\", \"look up the football score on YouTube\".\nMaintenance: \"free up memory\", \"clean the cache\", \"clear the DNS cache\", \"speed up the computer\".\nAnd also: summary, battery, weather, calendar, time, music, tidy the desktop.\nWith voice activation, say its name first: \"[name], open Chrome\".",
+ "Ouvre dans votre navigateur un formulaire pré-rempli (version, système, dernières erreurs). Rien n'est envoyé tant que vous ne l'avez pas relu et validé.": "Opens a pre-filled form in your browser (version, system, latest errors). Nothing is sent until you have reviewed and submitted it.",
+ "Assistant vocal": "Voice assistant",
+ "Activer l'assistant vocal": "Enable the voice assistant",
+ "Écoute, réponses et annonces vocales. Désactivé : DeskMonitor ne parle plus et n'utilise plus le micro.": "Listening, replies and spoken announcements. Off: DeskMonitor no longer speaks or uses the microphone.",
+ "L'assistant vocal est désactivé (Paramètres › Assistant).": "The voice assistant is off (Settings › Assistant).",
+ "mises à jour automatiques": "automatic updates"
 }

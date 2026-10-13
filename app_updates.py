@@ -8,6 +8,7 @@ from tkinter import messagebox
 import updater
 
 from core import (
+    DEFAULTS,
     is_packaged,
     open_path,
     APP_NAME,
@@ -18,7 +19,7 @@ from core import (
 class UpdateMixin:
     def _update_loop(self):
         c = self.cfg
-        if c["update_auto"] and c["update_repo"]:
+        if c["update_auto"]:   # vérification silencieuse (le dépôt n'est plus réglable)
             self.check_updates(False)
         self.root.after(24 * 3600 * 1000, self._update_loop)
 
@@ -27,13 +28,8 @@ class UpdateMixin:
             if manual:
                 open_path("ms-windows-store://downloadsandupdates")
             return
-        repo = self.cfg["update_repo"].strip()
-        if not repo:
-            if manual:
-                messagebox.showinfo(APP_NAME, "Indiquez d'abord le dépôt GitHub où sont publiées les versions\n"
-                                              "(Paramètres → Général → Mises à jour).")
-                self.open_settings("general")
-            return
+        # le dépôt n'est plus réglable dans les paramètres : celui du projet par défaut
+        repo = self.cfg.get("update_repo", "").strip() or DEFAULTS["update_repo"]
 
         def worker():
             try:

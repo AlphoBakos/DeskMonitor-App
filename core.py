@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.3"
+APP_VERSION = "1.9.4"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -465,6 +465,7 @@ DEFAULTS = {
     "user_name": "",
     "assistant_name": "Jarvis",
     "listen_hotkey": "cmd+alt+j" if IS_MAC else "ctrl+alt+j",
+    "assistant_on": True,        # assistant vocal (écoute, réponses, annonces) : désactivable dans les paramètres
     "wake_on": False,
     "migrated": 0,               # dernière migration des réglages appliquée (voir DeskWidget._migrate)
     "wake_aliases": [],          # façons dont la reconnaissance écrit le nom (apprises avec votre voix)            # activation par la voix (dire le nom de l'assistant)

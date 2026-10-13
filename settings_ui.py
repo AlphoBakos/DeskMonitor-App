@@ -345,7 +345,7 @@ class SettingsWindow:
         ("general", "◎", "Général", "Démarrage, raccourci, nettoyage et mises à jour"),
         ("about", "○", "À propos", ""),
     ]
-    RELAYOUT_KEYS = ("layout", "accent_mode", "mac_theme", "card_blur", "org_enabled", "voice_lang")
+    RELAYOUT_KEYS = ("layout", "accent_mode", "mac_theme", "card_blur", "org_enabled", "voice_lang", "assistant_on")
 
     def pages(self):
         """Pages disponibles sur ce système (l'écran de verrouillage n'est personnalisable que sous Windows)."""
@@ -824,7 +824,14 @@ class SettingsWindow:
                   voicemod.SYSTEM: "Voix du système (Siri si choisie dans macOS)" if IS_MAC else "Voix par défaut de Windows",
                   **{n: f"{lbl}, {tr('français')}" for n, lbl in voicemod.voices("fr").items()},
                   **{n: f"{lbl}, {tr('anglais')}" for n, lbl in voicemod.voices("en").items()}}
+        main = ("Assistant vocal", [
+            T("assistant_on", "Activer l'assistant vocal",
+              "Écoute, réponses et annonces vocales. Désactivé : DeskMonitor ne parle plus et n'utilise plus le micro."),
+        ])
+        if not self.cfg.get("assistant_on", True):
+            return [main]
         return [
+            main,
             ("Vous et votre assistant", [
                 TXT("user_name", "Votre prénom", "L'assistant vous appelle par ce prénom", placeholder="Alpho"),
                 TXT("assistant_name", "Nom de l'assistant", "Le nom qu'il se donne en se présentant", placeholder="Jarvis"),
@@ -835,7 +842,7 @@ class SettingsWindow:
                 "Chercher sur internet : « cherche recette de crêpes », « recherche le match du PSG sur YouTube ».\n"
                 "Entretien : « libère la mémoire », « nettoie le cache », « vide le cache DNS », « optimise le PC ».\n"
                 "Et toujours : le point, la batterie, la météo, l'agenda, l'heure, la musique, ranger le bureau.\n"
-                "Avec l'activation par la voix, dites son nom d'abord : « Bakos, ouvre Chrome ».")]),
+                "Avec l'activation par la voix, dites son nom d'abord : « [nom], ouvre Chrome ».")]),
             ("Commandes vocales", [
                 TXT("listen_hotkey", "Raccourci pour parler", "Appuyez, puis parlez : « le point », « ma batterie », "
                     "« la météo », « mes rendez-vous », « qui ralentit l'ordinateur », « pause »…",
@@ -937,12 +944,7 @@ class SettingsWindow:
                   "Relancer en admin", self.app.relaunch_admin, cond=IS_WIN and not admin and not is_packaged()),
             ]),
             ("Mises à jour", [
-                TXT("update_repo", "Dépôt GitHub", "Où sont publiées les nouvelles versions (utilisateur/projet)",
-                    width=28, cond=not is_packaged()),
-                T("update_auto", "Vérifier automatiquement", "Au démarrage puis une fois par jour",
-                  cond=not is_packaged()),
-                B("Version installée", f"DeskMonitor {APP_VERSION}" + (" · mises à jour par le Microsoft Store"
-                                                                      if is_packaged() else ""),
+                B("Version installée", f"DeskMonitor {APP_VERSION} · " + tr("mises à jour automatiques"),
                   "Ouvrir le Store" if is_packaged() else "Vérifier maintenant",
                   lambda: self.app.check_updates(True), primary=True),
             ]),
@@ -956,8 +958,8 @@ class SettingsWindow:
     def p_about(self):
         return [("", [X(self._about)]),
                 ("Aide et retours", [
-                    B("Signaler un problème", "Ouvre un formulaire pré-rempli (version, système, dernières erreurs) "
-                      "sur GitHub. Rien n'est envoyé tant que vous ne l'avez pas relu et validé.",
+                    B("Signaler un problème", "Ouvre dans votre navigateur un formulaire pré-rempli (version, système, "
+                      "dernières erreurs). Rien n'est envoyé tant que vous ne l'avez pas relu et validé.",
                       "Signaler…", self.app.report_problem, primary=True),
                     B("Proposer une idée", "Une fonction qui vous manque, une amélioration", "Proposer…",
                       self.app.suggest_idea),
@@ -1220,12 +1222,6 @@ class SettingsWindow:
         tk.Label(txt, text=tr("Version {}").format(APP_VERSION), bg=bg, fg=UI["muted"], font=(FONT, 10)).pack(anchor="w")
         tk.Label(txt, text="Heure, date, monitoring, alertes et bureau organisé,\nle tout personnalisable.",
                  bg=bg, fg=UI["text"], font=(FONT, 10), justify="left").pack(anchor="w", pady=(10, 0))
-        repo = self.cfg.get("update_repo")
-        if repo:
-            link = tk.Label(txt, text=f"github.com/{repo}", bg=bg, fg=self.accent, cursor="hand2",
-                            font=(FONT, 10, "underline"))
-            link.pack(anchor="w", pady=(8, 0))
-            link.bind("<Button-1>", lambda e: open_path(f"https://github.com/{repo}"))
 
     def _open_config(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)

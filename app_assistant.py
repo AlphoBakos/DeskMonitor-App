@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 import actions
+from i18n import tr
 from organizer import collect_items
 import mac_native
 import macdata
@@ -23,7 +24,7 @@ from core import (
 class AssistantMixin:
     # ----- Assistant ---------------------------------------------------------------
     def _setup_listen_hotkey(self):
-        spec = self.cfg["listen_hotkey"].strip()
+        spec = self.cfg["listen_hotkey"].strip() if self.cfg.get("assistant_on", True) else ""
         if spec != self._listen_spec:
             self._listen_spec = spec
             mac_native.register_hotkey(spec, lambda: self.call_soon(self.listen), slot=2) if spec else \
@@ -52,7 +53,7 @@ class AssistantMixin:
 
     def _wake_should_run(self):
         c = self.cfg
-        if not (self.voice_ready and c["wake_on"] and (IS_MAC or IS_WIN)):
+        if not (self.voice_ready and c.get("assistant_on", True) and c["wake_on"] and (IS_MAC or IS_WIN)):
             return False
         b = self._battery()
         if c["wake_battery_off"] and b is not None and not b.power_plugged:
@@ -203,36 +204,69 @@ class AssistantMixin:
     MUSIC_APPS = ("spotify", "deezer", "apple music", "amazon music", "tidal", "youtube music", "lecteur multimedia",
                   "media player", "windows media player", "vlc media player", "groove musique", "musique")
 
+    def _music_playing(self):
+        n = macdata.now_playing()
+        return bool(n and n.get("playing"))
+
+    def _ask_play(self, state):
+        """Demande au lecteur ouvert de jouer ; vrai si la musique démarre."""
+        macdata.player_command(state["app"], "play")
+        for _ in range(6):
+            time.sleep(0.5)
+            if self._music_playing():
+                return True
+        return False
+
     def start_music(self):
-        """Rien ne joue : la touche Lecture relance le dernier lecteur utilisé ; sinon on ouvre une application de
-        musique installée (Spotify, Deezer…), ou YouTube Music dans le navigateur."""
+        """« Joue de la musique » quand rien ne joue :
+        1. un lecteur est déjà ouvert (même sans morceau affiché) → on lui demande de jouer ;
+        2. sinon la touche Lecture (relance le dernier lecteur utilisé) ;
+        3. sinon on ouvre une application de musique installée, on attend qu'elle soit prête et on lui demande
+           de jouer ; si elle n'a rien à jouer, l'assistant le dit au lieu de rester silencieux."""
         def work():
             try:
+                if IS_MAC:
+                    import subprocess
+                    subprocess.run(["osascript", "-e", 'tell application "Music" to play'], timeout=8)
+                    return
+                state = macdata.player_state()
+                if state and self._ask_play(state):
+                    return
                 if IS_WIN:
                     import ctypes
                     u32 = ctypes.windll.user32
                     u32.keybd_event(0xB3, 0, 0, 0)   # VK_MEDIA_PLAY_PAUSE
                     u32.keybd_event(0xB3, 0, 2, 0)
-                elif IS_MAC:
-                    import subprocess
-                    subprocess.run(["osascript", "-e", 'tell application "Music" to play'], timeout=5)
-                time.sleep(2.0)
-                if macdata.now_playing():
+                    time.sleep(2.0)
+                    if self._music_playing():
+                        return
+                app = self._music_app()
+                if app is None:
+                    actions.open_target("https://music.youtube.com")
                     return
+                self.call_soon(self.organizer.launch, app)
+                for _ in range(30):   # jusqu'à 15 s pour que l'application soit prête
+                    time.sleep(0.5)
+                    state = macdata.player_state()
+                    if state and self._ask_play(state):
+                        return
+                t = self._tr
+                self.call_soon(self.speak, t(f"J'ai ouvert {app['name']}. Lancez un morceau ou une playlist : "
+                                             "je pourrai ensuite la piloter.",
+                                             f"I opened {app['name']}. Start a song or a playlist, and I'll be able "
+                                             "to control it."), True, True)
             except Exception:  # noqa: BLE001
                 pass
-            self.call_soon(self._open_music_app)
         threading.Thread(target=work, daemon=True).start()
 
-    def _open_music_app(self):
+    def _music_app(self):
         items = collect_items("apps", True, self.organizer.apps)
         names = {actions.norm(it["name"]): it for it in items}
         for wanted in self.MUSIC_APPS:
             hit = next((it for n, it in names.items() if n == wanted or n.startswith(wanted + " ")), None)
             if hit is not None:
-                self.organizer.launch(hit)
-                return
-        actions.open_target("https://music.youtube.com")
+                return hit
+        return None
 
     def _on_wake(self, command):
         name = self.cfg["user_name"].strip()
@@ -251,6 +285,9 @@ class AssistantMixin:
 
     def listen(self):
         """Écoute une phrase, puis répond."""
+        if not self.cfg.get("assistant_on", True):
+            self._toast(tr("L'assistant vocal est désactivé (Paramètres › Assistant)."), 5000)
+            return
         if self.wake.running:   # l'écoute continue tourne déjà : la prochaine phrase est une commande
             self.voice.stop()
             assistant.chime()

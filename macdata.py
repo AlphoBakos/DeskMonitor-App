@@ -179,11 +179,32 @@ async def _win_now_playing():
             "artist": props.artist or "", "playing": playing}
 
 
+async def _win_state():
+    """Lecteur ouvert, même sans morceau affiché (ex. Apple Music juste lancé) : {app, has_media, playing}."""
+    sess = await _win_session()
+    if sess is None:
+        return None
+    props = await sess.try_get_media_properties_async()
+    return {"app": sess.source_app_user_model_id or "Windows", "has_media": bool(props.title or props.artist),
+            "playing": sess.get_playback_info().playback_status == _PlayStatus.PLAYING}
+
+
+def player_state():
+    if not (IS_WIN and WIN_MEDIA):
+        return None
+    try:
+        return asyncio.run(_win_state())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 async def _win_command(cmd):
     sess = await _win_session()
     if sess is None:
         return
-    if cmd == "playpause":
+    if cmd == "play":
+        await sess.try_play_async()
+    elif cmd == "playpause":
         await sess.try_toggle_play_pause_async()
     elif cmd == "next track":
         await sess.try_skip_next_async()
