@@ -585,5 +585,7 @@
  "mises à jour automatiques": "automatic updates",
  "Économiser la batterie": "Save battery",
  "Écran trop petit pour tout afficher : les panneaux sont réduits automatiquement (moins de lignes, icônes plus petites). Vos réglages reviennent sur un écran plus grand.": "Screen too small to show everything: panels are reduced automatically (fewer rows, smaller icons). Your settings come back on a larger screen.",
- "Sur un portable débranché : mesures moins fréquentes (les animations ne changent pas)": "On an unplugged laptop: less frequent measurements (animations stay the same)"
+ "Sur un portable débranché : mesures moins fréquentes (les animations ne changent pas)": "On an unplugged laptop: less frequent measurements (animations stay the same)",
+ "Mode jeu": "Game mode",
+ "Quand un jeu ou une vidéo est en plein écran : widgets masqués et assistant en pause": "When a game or video is full screen: widgets hidden and assistant paused"
 }

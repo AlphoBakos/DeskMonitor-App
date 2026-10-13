@@ -48,6 +48,7 @@ from app_wallpaper import WallpaperMixin
 from app_updates import UpdateMixin
 from app_alerts import AlertsMixin
 from app_actions import ActionsMixin
+from app_gamemode import GameModeMixin
 from process_window import ProcessWindow
 
 from core import (
@@ -89,7 +90,7 @@ if IS_WIN:
 # --------------------------------------------------------------------------- #
 #  Widget principal
 # --------------------------------------------------------------------------- #
-class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, AlertsMixin, ActionsMixin):
+class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, AlertsMixin, ActionsMixin, GameModeMixin):
     def __init__(self, root):
         self.root = root
         self.cfg = load_config()
@@ -164,6 +165,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.root.after(4000, self._voice_watch)
         self.root.after(1500, self._setup_listen_hotkey)
         self.root.after(5000, self._wake_loop)
+        self.root.after(4000, self._game_loop)
         self.root.after(60000, self._dynamic_wallpaper_loop)
         threading.Thread(target=self._sensor_loop, daemon=True).start()
         self.tray = TrayIcon(self)
@@ -769,7 +771,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
 
     def _keep_on_desktop(self):
         """Garde les widgets sous les autres fenêtres (effet « widget de bureau »)."""
-        if not IS_WIN or self.cfg["topmost"]:
+        if not IS_WIN or self.cfg["topmost"] or self.game_active:
             return
         user32 = ctypes.windll.user32
         user32.GetParent.restype = user32.GetWindow.restype = ctypes.c_void_p
@@ -1011,7 +1013,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         screen_changed = bounds != self._last_bounds  # écran branché / débranché, résolution…
         self._last_health, self._last_bounds = now, bounds
         try:
-            if not self.cfg["widgets_hidden"]:
+            if not self.cfg["widgets_hidden"] and not self.game_active:
                 for w in self.all_windows():
                     if not (w is self.root and self.main_hidden):
                         ensure_visible(w)
@@ -1048,7 +1050,7 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
                 self.organizer.auto_layout()          # rangement complet : les panneaux s'adaptent pour tenir
             elif misplaced:
                 self.organizer.auto_layout(only=misplaced)
-            if not self.cfg["widgets_hidden"]:
+            if not self.cfg["widgets_hidden"] and not self.game_active:
                 for w in self.all_windows():
                     if not (w is self.root and self.main_hidden):
                         ensure_visible(w)

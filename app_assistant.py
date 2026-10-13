@@ -53,7 +53,8 @@ class AssistantMixin:
 
     def _wake_should_run(self):
         c = self.cfg
-        if not (self.voice_ready and c.get("assistant_on", True) and c["wake_on"] and (IS_MAC or IS_WIN)):
+        if not (self.voice_ready and c.get("assistant_on", True) and c["wake_on"] and (IS_MAC or IS_WIN)) \
+                or getattr(self, "game_active", False):   # mode jeu : l'écoute attend la sortie du plein écran
             return False
         b = self._battery()
         if c["wake_battery_off"] and b is not None and not b.power_plugged:

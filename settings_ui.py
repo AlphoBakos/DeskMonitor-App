@@ -930,6 +930,8 @@ class SettingsWindow:
             ("Comportement", [
                 C("voice_lang", "Langue", {"fr": "Français", "en": "English"},
                   "Interface, voix et réponses de l'assistant"),
+                T("game_mode", "Mode jeu",
+                  "Quand un jeu ou une vidéo est en plein écran : widgets masqués et assistant en pause", cond=IS_WIN),
                 T("eco_battery", "Économiser la batterie",
                   "Sur un portable débranché : mesures moins fréquentes (les animations ne changent pas)"),
                 T(None, "Lancer au démarrage de Windows" if IS_WIN else "Lancer à l'ouverture de session", cond=IS_WIN or IS_MAC,
