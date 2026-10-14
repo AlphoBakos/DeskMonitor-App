@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "1.9.9"
+APP_VERSION = "2.0.0"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -500,6 +500,10 @@ DEFAULTS = {
     "mac_theme": "auto",         # auto | dark | light : thème de TOUS les widgets
     "accent_mode": "system",     # system (couleur du système) | custom (accent_color) | wallpaper (fond d'écran)
     "animations": True,          # apparitions, survols, glissements et compteurs animés
+    "taskbar_meter": "off",      # mesures dans la barre des tâches : off / cpu_ram / net / all
+    "taskbar_color": "off",      # couleur de la barre : off / wallpaper / accent / #rrggbb
+    "taskbar_saved": None,       # réglages de couleur de Windows avant DeskMonitor (remis ensuite)
+    "taskbar_applied": "",
     "crash_ask": True,           # après un plantage : proposer d'envoyer un rapport (jamais envoyé sans accord)
     "game_mode": True,           # jeu / vidéo en plein écran : widgets masqués, écoute vocale en pause
     "eco_battery": False,        # sur batterie : mesures moins fréquentes (les animations ne changent pas)

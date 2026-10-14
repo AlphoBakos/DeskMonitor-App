@@ -924,6 +924,11 @@ class SettingsWindow:
             ]),
         ]
 
+    @staticmethod
+    def _light_taskbar():
+        import taskbar
+        return taskbar.light_mode()
+
     def p_general(self):
         admin = is_admin()
         return [
@@ -945,6 +950,17 @@ class SettingsWindow:
                 T("card_menubar", "CPU, RAM et réseau dans la barre des menus" if IS_MAC else
                   "CPU, RAM et réseau dans l'infobulle de l'icône (à côté de l'horloge)", cond=IS_MAC or IS_WIN),
             ]),
+            *([("Barre des tâches", [
+                C("taskbar_meter", "Mesures dans la barre des tâches",
+                  {"off": "Aucune", "cpu_ram": "Processeur et mémoire", "net": "Réseau",
+                   "all": "Processeur, mémoire et réseau"},
+                  "À gauche de l'horloge. Un clic : processus en cours ; clic droit : options"),
+                C("taskbar_color", "Couleur de la barre des tâches", {'off': 'Normale (Windows)', 'wallpaper': "Couleur du fond d'écran", 'accent': 'Couleur des widgets', '#2f6fd6': 'Bleu', '#7b4fd6': 'Violet', '#1f9e6e': 'Vert', '#d6455f': 'Rose', '#e07a1f': 'Orange'},
+                  "Option officielle de Windows ; tout redevient comme avant avec « Normale »", cond=not is_packaged()),
+                *([self._note("En mode clair, Windows ne colore pas la barre des tâches : choisissez le mode sombre "
+                              "(Paramètres Windows > Personnalisation > Couleurs).")]
+                  if not is_packaged() and self._light_taskbar() else []),
+            ])] if IS_WIN else []),
             ("Nettoyage", [
                 T("clean_browsers", "Inclure les caches des navigateurs", "Chrome, Edge, Firefox, Brave…"),
                 T("clean_recycle", "Vider aussi la corbeille"),

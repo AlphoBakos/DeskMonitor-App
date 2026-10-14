@@ -49,6 +49,7 @@ from app_updates import UpdateMixin
 from app_alerts import AlertsMixin
 from app_actions import ActionsMixin
 from app_gamemode import GameModeMixin
+from app_taskbar import TaskbarMixin
 from process_window import ProcessWindow
 
 from core import (
@@ -90,7 +91,8 @@ if IS_WIN:
 # --------------------------------------------------------------------------- #
 #  Widget principal
 # --------------------------------------------------------------------------- #
-class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, AlertsMixin, ActionsMixin, GameModeMixin):
+class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, AlertsMixin, ActionsMixin, GameModeMixin,
+                 TaskbarMixin):
     def __init__(self, root):
         self.root = root
         self.cfg = load_config()
@@ -166,6 +168,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
         self.root.after(1500, self._setup_listen_hotkey)
         self.root.after(5000, self._wake_loop)
         self.root.after(4000, self._game_loop)
+        if IS_WIN:
+            self.root.after(3000, self._taskbar_loop)
         self.root.after(60000, self._dynamic_wallpaper_loop)
         threading.Thread(target=self._sensor_loop, daemon=True).start()
         self.tray = TrayIcon(self)
@@ -1280,6 +1284,8 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
     def quit(self):
         self.tray.stop()
         self.organizer.shutdown()
+        if IS_WIN:
+            self.restore_taskbar()   # couleur de Windows remise comme avant (réappliquée au prochain lancement)
         save_config(self.cfg)
         import crash
         crash.closed_normally()
@@ -1331,6 +1337,11 @@ def main():
             pass
     if "--show-icons" in sys.argv:  # utilisé par le désinstalleur
         set_desktop_icons(True)
+        try:   # barre des tâches remise comme avant DeskMonitor
+            import taskbar
+            taskbar.restore(load_config().get("taskbar_saved"))
+        except Exception:  # noqa: BLE001
+            pass
         return
     if "--selftest" in sys.argv:  # vérification automatique de l'application compilée (GitHub Actions)
         from selftest import selftest
