@@ -14,7 +14,7 @@ if IS_WIN:
     import winreg
 
 APP_NAME = "DeskMonitor"
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.1.0"
 HIST_LEN = 60  # nombre de mesures conservées pour les graphiques
 if IS_WIN:
     CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_NAME
@@ -411,6 +411,10 @@ DEFAULTS = {
     "org_custom": [],
     "org_collapsed": ["Système"],
     "org_cat_state": {},       # {panneau: "hide" (masqué) | "remove" (supprimé, apps -> Autres)}
+    # emplacement de départ des panneaux, en fraction de la place libre (0 = bord gauche / haut, 1 = bord droit / bas) :
+    # la même disposition sur tous les écrans, quelle que soit leur taille
+    "org_default_spots": {"Internet": [0.0068, 0.9126], "Développement": [0.324, 0.9115], "Dossiers": [0.6465, 0.9126],
+                          "Système": [0.9718, 0.9128], "Bureautique": [0.9685, 0.0463], "Utilitaires": [0.9691, 0.4846]},
     "org_icons_hidden_by_app": False,
     "org_cat_style": {},       # {panneau: {"accent": "#RRGGBB", "opacity": 90}}
     "org_labels": True,        # noms sous les icônes
@@ -525,6 +529,28 @@ DEFAULTS = {
     "y": None,
     "positions": {},
 }
+
+# Disposition et apparence de départ des nouvelles installations : celles de l'écran de référence du projet
+# (cartes, couleurs, panneaux d'applications et leurs emplacements). Le fond d'écran, l'écran de verrouillage,
+# les noms, la ville et les réglages personnels n'en font pas partie. Les installations existantes gardent les leurs.
+DEFAULTS.update({
+    "cards": ["clock", "system", "storage", "network", "battery", "weather"],
+    "cards_cols": 3,
+    "card_blur": False,
+    "opacity": 65,
+    "accent_color": "#1F9E6E",
+    "date_color": "#1F9E6E",
+    "bg_color": "#15181D",
+    "text_color": "#EEF1F5",
+    "clock_color": "#EEF1F5",
+    "warn_color": "#FF5D4F",
+    "bar_bg": "#2C333D",
+    "date_format": "long_noyear",
+    "date_case": "upper",
+    "org_enabled": True,
+    "org_collapsed": [],
+    "org_cat_state": {"Multimédia": "hide", "Autres": "hide", "Jeux": "hide"},
+})
 
 
 # --------------------------------------------------------------------------- #

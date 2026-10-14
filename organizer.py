@@ -789,6 +789,10 @@ class DesktopOrganizer:
                 self._fill(win, cat, items)
         for cat in new:
             pos = c["positions"].get(f"fence:{cat}")
+            if not self.app._valid_pos(pos):   # première fois : emplacement de départ (s'il est libre)
+                pos = self._default_spot(cat)
+                if pos:
+                    c["positions"][f"fence:{cat}"] = pos
             if self.app._valid_pos(pos):
                 self.fences[cat].geometry(f"+{int(pos[0])}+{int(pos[1])}")
         if new:
@@ -798,6 +802,40 @@ class DesktopOrganizer:
                 self._entered = True   # après les cartes, les panneaux arrivent un à un
                 for i, cat in enumerate(sorted(new, key=lambda k: self.app.anim.pos(self.fences[k]))):
                     self.app.anim.appear(self.fences[cat], 380 + i * 70)
+
+    def _default_spot(self, cat):
+        """Emplacement de départ d'un panneau (disposition par défaut), adapté à la taille de l'écran.
+        None s'il n'y en a pas ou s'il chevaucherait une carte ou un autre panneau (placement automatique)."""
+        spot = self.cfg.get("org_default_spots", {}).get(cat)
+        win = self.fences.get(cat)
+        if not spot or win is None:
+            return None
+        win.update_idletasks()
+        w, h = win.winfo_reqwidth(), win.winfo_reqheight()
+        left, top, right, bottom = self._work_area()
+        if right - left < 1880 or bottom - top < 1000:   # écran plus petit que celui de référence : placement automatique
+            return None
+        x = int(left + spot[0] * max(0, right - left - w))
+        y = int(top + spot[1] * max(0, bottom - top - h))
+        r = (x, y, x + w, y + h)
+
+        def hit(a, b, m=8):
+            return a[0] < b[2] + m and b[0] < a[2] + m and a[1] < b[3] + m and b[1] < a[3] + m
+
+        others = []
+        cards = getattr(self.app, "cards", None)
+        for o in ([*cards.windows()] if cards is not None and cards.active else []):
+            if o.winfo_exists():
+                ox, oy = self.app.anim.pos(o)
+                others.append((ox, oy, ox + o.winfo_width(), oy + o.winfo_height()))
+        for k, o in self.fences.items():
+            p = self.cfg["positions"].get(f"fence:{k}")
+            if k != cat and self.app._valid_pos(p):
+                o.update_idletasks()
+                others.append((int(p[0]), int(p[1]), int(p[0]) + o.winfo_reqwidth(), int(p[1]) + o.winfo_reqheight()))
+        if any(hit(r, o, 0) for o in others):   # panneaux de départ serrés (quelques pixels d'écart) : permis
+            return None
+        return [x, y]
 
     def _scale(self):
         return self.app.root.winfo_fpixels("1i") / 96.0

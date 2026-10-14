@@ -370,26 +370,36 @@ def _locate(city):
 
 
 def weather(city=""):
-    """{city, temp, icon, label, tmin, tmax, hours:[(heure, temp, icône)]} ou None."""
+    """{city, temp, icon, label, code, is_day, feels, humidity, wind, precip, tmin, tmax,
+    hours:[(heure, temp, icône, code, is_day)]} ou None."""
     try:
         loc = _locate(city.strip())
         if not loc:
             return None
         lat, lon, name = loc
         d = _http_json("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&timezone=auto&forecast_days=2"
-                       "&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code"
+                       "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,"
+                       "weather_code,is_day"
+                       "&hourly=temperature_2m,weather_code,precipitation_probability,is_day"
                        "&daily=temperature_2m_max,temperature_2m_min" % (lat, lon))
-        code = d["current"]["weather_code"]
+        cur, hr = d["current"], d["hourly"]
+        code = cur["weather_code"]
         icon, label = WEATHER_CODES.get(code, ("🌡", ""))
-        hours = []
+        hours, precip = [], None
         now_h = datetime.now().replace(minute=0, second=0, microsecond=0)
-        for t, temp, wc in zip(d["hourly"]["time"], d["hourly"]["temperature_2m"], d["hourly"]["weather_code"]):
+        probs = hr.get("precipitation_probability") or [None] * len(hr["time"])
+        days = hr.get("is_day") or [1] * len(hr["time"])
+        for t, temp, wc, pr, day in zip(hr["time"], hr["temperature_2m"], hr["weather_code"], probs, days):
             dt = datetime.fromisoformat(t)
-            if dt > now_h and dt <= now_h + timedelta(hours=12) and dt.hour % 3 == 0:
-                hours.append((dt.hour, temp, WEATHER_CODES.get(wc, ("🌡", ""))[0]))
-        return {"city": name, "temp": d["current"]["temperature_2m"], "icon": icon, "label": label, "code": code,
+            if dt == now_h:
+                precip = pr
+            if dt > now_h and dt <= now_h + timedelta(hours=15) and dt.hour % 3 == 0:
+                hours.append((dt.hour, temp, WEATHER_CODES.get(wc, ("🌡", ""))[0], wc, day))
+        return {"city": name, "temp": cur["temperature_2m"], "icon": icon, "label": label, "code": code,
+                "is_day": cur.get("is_day", 1), "feels": cur.get("apparent_temperature"),
+                "humidity": cur.get("relative_humidity_2m"), "wind": cur.get("wind_speed_10m"), "precip": precip,
                 "tmin": d["daily"]["temperature_2m_min"][0], "tmax": d["daily"]["temperature_2m_max"][0],
-                "hours": hours[:4]}
+                "hours": hours[:5]}
     except Exception:  # noqa: BLE001
         return None
 

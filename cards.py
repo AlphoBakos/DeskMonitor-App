@@ -821,42 +821,247 @@ class CalendarCard(Card):
             self.set(self.titles[i], text=title)
 
 
+def weather_kind(code):
+    """Famille de temps (codes Open-Meteo) : choisit la scène dessinée."""
+    code = code or 0
+    if code == 0:
+        return "clear"
+    if code in (1, 2):
+        return "partly"
+    if code in (45, 48):
+        return "fog"
+    if 51 <= code <= 57:
+        return "drizzle"
+    if 61 <= code <= 67 or 80 <= code <= 82:
+        return "rain"
+    if 71 <= code <= 77 or code in (85, 86):
+        return "snow"
+    if code >= 95:
+        return "storm"
+    return "cloudy"
+
+
+class WeatherScene:
+    """Petite scène météo vectorielle (soleil, lune, nuages, pluie, neige, éclairs, brouillard), animée en douceur.
+    Coordonnées « logiques » de la carte, mises à l'échelle de l'écran par kx / ky."""
+    SUN, MOON, BOLT = "#FFC53D", "#EDE6C8", "#FFE36E"
+
+    def __init__(self, card, cx, cy, s, kind, night, animated):
+        self.c, self.cv, self.m = card, card.cv, card.m
+        self.cx, self.cy, self.s, self.kind, self.night, self.animated = cx, cy, s, kind, night, animated
+        self.items, self.parts, self.t0 = [], [], time.time()
+        self.fall = 12 if animated else 6   # hauteur de chute de la pluie / neige (petite icône : courte)
+        dark = self.m.dark
+        self.bgc = card.key if card.win_blur else self.m.bg   # couleur réelle du fond (découpe du croissant)
+        self.cloud = "#E3E8EF" if dark else "#AEB8C5"
+        self.cloud2 = "#B9C2CE" if dark else "#8E99A8"
+        if kind == "storm":
+            self.cloud, self.cloud2 = ("#9AA4B2", "#6F7987") if dark else ("#7D8796", "#5E6876")
+        self.rain = "#63B8FF" if dark else "#2F86D6"
+        self.snow = "#FFFFFF" if dark else "#7F97B2"
+        self._build()
+
+    # ----- dessin ----------------------------------------------------------------------------------
+    def _xy(self, pts):
+        c = self.c
+        return [v * (c.kx if i % 2 == 0 else c.ky) for i, v in enumerate(pts)]
+
+    def _add(self, kind, base, item, **extra):
+        self.items.append(item)
+        self.parts.append(dict(kind=kind, base=base, item=item, **extra))
+        return item
+
+    def _oval(self, kind, x0, y0, x1, y1, fill, **extra):
+        pts = [x0, y0, x1, y1]
+        return self._add(kind, pts, self.cv.create_oval(*self._xy(pts), fill=fill, outline=""), **extra)
+
+    def _sun(self, x, y, r):
+        s, bg = self.s, self.m.bg
+        for k, a in ((1.85, 0.10), (1.5, 0.2)):   # halo lumineux
+            self._oval("glow", x - r * k, y - r * k, x + r * k, y + r * k, blend(bg, self.SUN, a), r=r * k, cx=x, cy=y,
+                       k=k)
+        for i in range(8):   # rayons
+            self._add("ray", [x, y], self.cv.create_line(0, 0, 0, 0, fill=self.SUN, capstyle="round",
+                                                         width=max(1.0, 2.2 * s * self.c.kx)), i=i, r=r)
+        self._oval("still", x - r, y - r, x + r, y + r, self.SUN)
+        self._oval("still", x - r * 0.55, y - r * 0.75, x - r * 0.05, y - r * 0.3, blend(self.SUN, "#FFFFFF", 0.45))
+
+    def _moon(self, x, y, r):
+        bg = self.m.bg
+        self._oval("glow", x - r * 1.7, y - r * 1.7, x + r * 1.7, y + r * 1.7, blend(bg, self.MOON, 0.10), r=r * 1.7,
+                   cx=x, cy=y, k=1.7)
+        self._oval("still", x - r, y - r, x + r, y + r, self.MOON)
+        self._oval("still", x - r * 0.35, y - r * 1.15, x + r * 1.45, y + r * 0.65, self.bgc)   # croissant
+        if self.animated:
+            for i, (dx, dy) in enumerate(((-30, -16), (26, -22), (30, 14), (-26, 18))):   # étoiles scintillantes
+                sx, sy = x + dx * self.s, y + dy * self.s
+                rr = (1.6 if i % 2 else 1.2) * self.s
+                self._oval("star", sx - rr, sy - rr, sx + rr, sy + rr, self.MOON, i=i)
+
+    def _cloud(self, x, y, k, fill, drift=0.0):
+        s = self.s * k
+        ovals = ((-22, -4, -2, 14), (-13, -17, 11, 7), (-1, -9, 22, 14), (-15, 0, 15, 14))
+        for ox0, oy0, ox1, oy1 in ovals:
+            self._oval("cloud", x + ox0 * s, y + oy0 * s, x + ox1 * s, y + oy1 * s, fill, drift=drift)
+        # reflet clair sur le haut du nuage
+        self._oval("cloud", x - 9 * s, y - 14 * s, x + 4 * s, y - 6 * s, blend(fill, "#FFFFFF", 0.35), drift=drift)
+
+    def _build(self):
+        x, y, s, k, n = self.cx, self.cy, self.s, self.kind, self.night
+        body = self._moon if n else self._sun
+        if k == "clear":
+            body(x, y, 14 * s)
+        elif k == "partly":
+            body(x - 8 * s, y - 5 * s, 11 * s)
+            self._cloud(x + 6 * s, y + 6 * s, 0.85, self.cloud, drift=1.0)
+        elif k == "fog":
+            self._cloud(x, y - 6 * s, 0.9, self.cloud2, drift=0.6)
+            for i in range(3):
+                yy = y + (10 + i * 7) * s
+                w = (24 - i * 4) * s
+                self._add("fog", [x - w, yy, x + w, yy], self.cv.create_line(
+                    *self._xy([x - w, yy, x + w, yy]), fill=blend(self.m.bg, self.cloud, 0.75 - i * 0.15),
+                    width=max(1.0, 3.2 * s * self.c.kx), capstyle="round"), i=i)
+        else:
+            if k == "cloudy":
+                self._cloud(x - 9 * s, y - 7 * s, 0.7, self.cloud2, drift=0.6)
+                self._cloud(x + 4 * s, y + 2 * s, 1.0, self.cloud, drift=1.0)
+                return
+            top = y + 10 * s
+            if k in ("rain", "drizzle", "storm"):
+                n_drops = 4 if k == "drizzle" else 6
+                for i in range(n_drops):
+                    dx = (-15 + 30 * i / max(1, n_drops - 1)) * s
+                    self._add("drop", [x + dx, top], self.cv.create_line(
+                        0, 0, 0, 0, fill=self.rain, width=max(1.0, (1.6 if k == "drizzle" else 2.0) * s * self.c.kx),
+                        capstyle="round"), i=i, n=n_drops, short=k == "drizzle")
+            if k == "snow":
+                for i in range(6):
+                    dx = (-15 + 6 * i) * s
+                    self._oval("flake", x + dx - 1.8 * s, top, x + dx + 1.8 * s, top + 3.6 * s, self.snow, i=i)
+            if k == "storm":
+                pts = [x + 2 * s, top - 2 * s, x - 6 * s, top + 9 * s, x, top + 9 * s, x - 4 * s, top + 19 * s,
+                       x + 8 * s, top + 6 * s, x + 2 * s, top + 6 * s, x + 6 * s, top - 2 * s]
+                self._add("bolt", pts, self.cv.create_polygon(*self._xy(pts), fill=self.BOLT, outline=""))
+            self._cloud(x, y - 4 * s, 1.0, self.cloud, drift=1.0)
+        if not self.animated:
+            self.frame(still=True)
+
+    # ----- animation -------------------------------------------------------------------------------
+    def frame(self, still=False):
+        import math
+        t = 0.0 if still else time.time() - self.t0
+        s, cv, c = self.s, self.cv, self.c
+        intro = 1.0 if still else anim.ease_out(min(1.0, t / 0.7))
+        lift = (1 - intro) * 8 * s   # la scène apparaît en remontant doucement
+        for p in self.parts:
+            kind, b, it = p["kind"], p["base"], p["item"]
+            if kind == "ray":
+                a = math.radians(p["i"] * 45 + t * 14)
+                r0, r1 = p["r"] * 1.35, p["r"] * (1.75 + 0.08 * math.sin(t * 2.2 + p["i"]))
+                cv.coords(it, *self._xy([b[0] + r0 * math.cos(a), b[1] + r0 * math.sin(a) + lift,
+                                         b[0] + r1 * math.cos(a), b[1] + r1 * math.sin(a) + lift]))
+            elif kind == "glow":
+                r = p["r"] * (1 + 0.05 * math.sin(t * 1.6 + p["k"]))
+                cv.coords(it, *self._xy([p["cx"] - r, p["cy"] - r + lift, p["cx"] + r, p["cy"] + r + lift]))
+            elif kind == "cloud":
+                dx = math.sin(t * 0.55 + p["drift"] * 2) * 2.6 * s * p["drift"]
+                cv.coords(it, *self._xy([b[0] + dx, b[1] + lift, b[2] + dx, b[3] + lift]))
+            elif kind == "drop":
+                ph = (t * (0.9 if p["short"] else 1.25) + p["i"] / p["n"] * 0.97) % 1
+                ln = (4 if p["short"] else 7) * s
+                x0, y0 = b[0] - ph * 3 * s, b[1] + ph * self.fall * s + lift
+                cv.coords(it, *self._xy([x0, y0, x0 - 1.6 * s, y0 + ln]))
+                c.fill(it, anim.mix(self.rain, self.m.bg, max(0.0, ph - 0.7) / 0.3))   # s'efface en tombant
+            elif kind == "flake":
+                ph = (t * 0.32 + p["i"] / 6) % 1
+                dx = math.sin(t * 1.8 + p["i"] * 1.3) * 2.5 * s
+                dy = ph * self.fall * s + lift
+                cv.coords(it, *self._xy([b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy]))
+                c.fill(it, anim.mix(self.snow, self.m.bg, max(0.0, ph - 0.75) / 0.25))
+            elif kind == "fog":
+                dx = math.sin(t * 0.5 + p["i"] * 1.9) * 5 * s
+                cv.coords(it, *self._xy([b[0] + dx, b[1] + lift, b[2] + dx, b[3] + lift]))
+            elif kind == "star":
+                c.fill(it, anim.mix(self.m.bg, self.MOON, 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2.1 + p["i"] * 1.7))))
+                if lift:
+                    cv.coords(it, *self._xy([b[0], b[1] + lift, b[2], b[3] + lift]))
+            elif kind == "bolt":
+                ph = t % 3.4   # double éclair bref toutes les 3,4 s
+                on = still or ph < 0.09 or 0.18 < ph < 0.26
+                cv.itemconfigure(it, state="normal" if on else "hidden")
+                if lift:
+                    cv.coords(it, *self._xy([v + (lift if i % 2 else 0) for i, v in enumerate(b)]))
+            elif lift or still:
+                cv.coords(it, *self._xy([b[0], b[1] + lift, b[2], b[3] + lift]))
+
+    def destroy(self):
+        for it in self.items:
+            self.cv.delete(it)
+        self.items, self.parts = [], []
+
+
 class WeatherCard(Card):
     def build(self):
         self.header("Météo")
-        self.temp = self.text(14, 30, "", 52, False, num=True)
-        self.icon = self.text(0, 0, "", 26, anchor="w")
-        self.lbl = self.text(16, self.py - 34, "", 12, True)
-        self.rng = self.text(16, self.py - 15, "", 11, False, self.m.sub, num=True)
+        self.temp = self.text(96, 24, "", 46, False, num=True)
+        self.lbl = self.text(98, 77, "", 11, True)
+        x = self.px - 16
+        self.facts = [self.text(x, 32 + i * 16, "", 10, False, self.m.sub, anchor="ne", num=True) for i in range(3)]
+        self.sep = self.cv.create_line(16, 97, self.px - 16, 97, fill=self.m.track)
         self.hrs = []
-        for i in range(4):
-            x = self.px - 30 - (3 - i) * 46
-            self.hrs.append((self.text(x, 40, "", 10, False, self.m.sub, anchor="n", num=True),
-                             self.text(x, 62, "", 15, anchor="n"),
-                             self.text(x, 92, "", 13, False, anchor="n", num=True)))
+        n, x0, x1 = 5, 16, self.px - 16
+        for i in range(n):
+            cx = x0 + (x1 - x0) * (i + 0.5) / n
+            self.hrs.append((cx, self.text(cx, 100, "", 9, False, self.m.sub, anchor="n", num=True),
+                             self.text(cx, 140, "", 10, True, anchor="n", num=True)))
+        self.scene, self.minis, self._sig = None, [], None
 
     def update(self, d):
         w = d["weather"]
         if not w:
             self.set(self.lbl, text="Météo indisponible")
-            self.set(self.rng, text="Vérifiez la connexion internet")
+            self.set(self.facts[0], text="Vérifiez la connexion")
             return
         self.set(self.hdr, text=w["city"] or "Météo")
-        self.set(self.temp, text=f"{w['temp']:.0f}°")
-        bb = self.cv.bbox(self.temp)
-        if bb:
-            self.cv.coords(self.icon, bb[2] + 4 * self.kx, (bb[1] + bb[3]) / 2)
-        self.set(self.icon, text=w["icon"])
+        self.count(self.temp, "temp", w["temp"], lambda v: f"{v:.0f}°")
         label = w["label"]
         if i18n.lang() == "en":   # description de la météo en anglais (codes Open-Meteo)
             label = macdata.WEATHER_EN.get(w.get("code"), label).capitalize()
         self.set(self.lbl, text=label)
-        self.set(self.rng, text=f"{w['tmin']:.0f}°  /  {w['tmax']:.0f}°")
-        for i, (h_, ic, t) in enumerate(self.hrs):
-            h = w["hours"][i] if i < len(w["hours"]) else None
+        en = i18n.lang() == "en"
+        facts = [f"↑ {w['tmax']:.0f}°   ↓ {w['tmin']:.0f}°"]
+        if w.get("feels") is not None:
+            facts.append(("Feels like" if en else "Ressenti") + f" {w['feels']:.0f}°")
+        if w.get("precip") is not None and w["precip"] >= 20:
+            facts.append(("Rain" if en else "Pluie") + f" {w['precip']:.0f} %")
+        elif w.get("wind") is not None:
+            facts.append(("Wind" if en else "Vent") + f" {w['wind']:.0f} km/h")
+        for item, txt in zip(self.facts, facts + ["", "", ""]):
+            self.set(item, text=txt)
+        hours = w.get("hours") or []
+        sig = (weather_kind(w.get("code")), not w.get("is_day", 1), self.m.dark,
+               tuple((h[3] if len(h) > 3 else None, h[4] if len(h) > 4 else 1) for h in hours))
+        if sig != self._sig:   # nouvelle scène seulement quand le temps change
+            self._sig = sig
+            if self.scene:
+                self.scene.destroy()
+            for m in self.minis:
+                m.destroy()
+            self.scene = WeatherScene(self, 50, 58, 1.25, sig[0], sig[1], self.app.anim.on)
+            self.minis = [WeatherScene(self, cx, 126 if weather_kind(h[3] if len(h) > 3 else 3) in
+                                       ("clear", "partly", "cloudy") else 123, 0.4, weather_kind(h[3]) if len(h) > 3 else "cloudy",
+                                       len(h) > 4 and not h[4], False)
+                          for (cx, _, _), h in zip(self.hrs, hours)]
+            self.cv.tag_raise(self.sep)
+        for i, (cx, h_, t) in enumerate(self.hrs):
+            h = hours[i] if i < len(hours) else None
             self.set(h_, text=f"{h[0]:02d}h" if h else "")
-            self.set(ic, text=h[2] if h else "")
             self.set(t, text=f"{h[1]:.0f}°" if h else "")
+
+    def frame(self):
+        if self.scene and self.app.anim.on:
+            self.scene.frame()
 
 
 class ProcessCard(Card):
