@@ -518,6 +518,8 @@ class ClockCard(Card):
     def build(self):
         big = self.w >= 3
         self.t = self.text(14, 6, "", 92 if big else 66, False, num=True)
+        # secondes (réglage « Afficher les secondes ») : en plus petit juste après l'heure
+        self.s = self.text(0, 0, "", 30 if big else 22, False, self.m.sub, anchor="sw", num=True)
         self.dt = self.text(18, self.py - 46, "", 15, False)
         # trotteuse : 60 graduations sous l'heure
         x0, x1, y = 18, self.px - 18, self.py - 16
@@ -534,13 +536,27 @@ class ClockCard(Card):
     def update(self, d):
         c, now = self.m.cfg, datetime.now()
         fmt = "%H:%M" if c["clock_24h"] else "%I:%M"
-        self.swap_text(self.t, now.strftime(fmt) + ("" if c["clock_24h"] else (" am" if now.hour < 12 else " pm")))
+        ampm = "" if c["clock_24h"] else (" am" if now.hour < 12 else " pm")
+        self.swap_text(self.t, now.strftime(fmt) + ("" if c["show_seconds"] else ampm))
         self.swap_text(self.dt, format_date(now, c), rise=3)
         self._light(now.second)
+
+    def _seconds(self):
+        """Secondes à droite de l'heure (elles suivent l'heure quand elle change en fondu)."""
+        c = self.m.cfg
+        if not c["show_seconds"]:
+            self.set(self.s, text="")
+            return
+        now = datetime.now()
+        bb = self.cv.bbox(self.t)
+        if bb:
+            self.cv.coords(self.s, bb[2] + 4 * self.kx, bb[1] + (bb[3] - bb[1]) * 0.86)
+        self.set(self.s, text=now.strftime(":%S") + ("" if c["clock_24h"] else (" am" if now.hour < 12 else " pm")))
 
     def _light(self, s):
         if s == self._lit:
             return
+        self._seconds()
         dim = blend(self.m.accent, self.m.track, 0.5)
         for i, t in enumerate(self.sec):
             # traînée : les secondes passées s'estompent vers le début de la minute
