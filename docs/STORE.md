@@ -35,7 +35,7 @@ Pour chaque nouvelle version : changer `APP_VERSION` dans `core.py`, refaire ces
 > • Actions en un clic : nettoyer le cache, libérer la mémoire, vider le cache DNS, voir les programmes qui ralentissent l'ordinateur.
 > • Bureau organisé : vos applications rangées par thème dans des panneaux, sans déplacer aucun fichier.
 > • Assistant vocal : « ouvre Chrome », « ouvre le dossier téléchargements », « cherche une recette », « fais le point ».
-> • Verre dépoli, thème clair ou sombre, animations fluides, fonds d'écran originaux et écran de verrouillage personnalisé.
+> • Verre dépoli, thème clair ou sombre, animations fluides, fonds d'écran originaux et panneaux d'applications colorés.
 
 **Catégorie :** Utilitaires et outils.
 
@@ -57,7 +57,7 @@ Depuis la 1.9.1, l'interface existe aussi en anglais, et le paquet déclare les 
 > • One-click actions: clean the cache, free up memory, flush the DNS cache, see which programs slow your computer down.
 > • Organized desktop: your apps grouped by theme into panels, without moving a single file.
 > • Voice assistant: "open Chrome", "open the downloads folder", "search for a recipe", "give me a summary".
-> • Frosted glass, light or dark theme, smooth animations, original wallpapers and a custom lock screen.
+> • Frosted glass, light or dark theme, smooth animations, original wallpapers and colorful app panels.
 > • Available in English and French.
 
 **Description courte :**
@@ -94,7 +94,7 @@ Partner Center demande pourquoi l'application utilise des fonctionnalités restr
 - **Écritures isolées par Windows** (pas de permission `unvirtualizedResources`) :
   - la configuration (`%APPDATA%\DeskMonitor`) est redirigée vers le dossier privé du paquet (`…\Packages\<paquet>\LocalCache\Roaming\DeskMonitor`). L'application la relit normalement, et « Dossier de configuration » ouvre le vrai emplacement (`core.real_config_dir()`). Elle n'est pas partagée avec la version téléchargeable ;
   - le fond d'écran appliqué est copié dans `Images\DeskMonitor`, puis posé avec l'API Windows des applications du Store (`UserProfilePersonalizationSettings`) ;
-  - réglages masqués parce qu'ils écrivent dans le registre (redirigé, donc sans effet) : disposition de l'image du fond d'écran, horloge 24 h de Windows, astuces de l'écran de verrouillage.
+  - réglages masqués parce qu'ils écrivent dans le registre (redirigé, donc sans effet) : disposition de l'image du fond d'écran.
 - Le code détecte la version Store avec `core.is_packaged()`.
 
 ## 6. Essayer le paquet avant de l'envoyer

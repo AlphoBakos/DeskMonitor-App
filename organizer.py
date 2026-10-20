@@ -340,6 +340,66 @@ def collect_items(source, with_system, apps):
 # --------------------------------------------------------------------------- #
 #  Icônes Windows -> images Tk
 # --------------------------------------------------------------------------- #
+# couleur propre à chaque panneau (modifiable panneau par panneau dans les paramètres)
+CAT_COLORS = {"Internet": "#3B9EFF", "Bureautique": "#F5A524", "Développement": "#9B6BFF", "Multimédia": "#FF5C8A",
+              "Utilitaires": "#2EC4B6", "Système": "#7F95B8", "Jeux": "#4CD787", "Dossiers": "#F2C94C",
+              "Autres": "#8E99A8"}
+
+
+class _Plates:
+    """Images d'une tuile : plaque arrondie en dégradé + icône, selon le survol, l'appui et la lueur de lancement.
+    Créées à la demande et gardées (quelques nuances par tuile)."""
+    STEPS = 6
+
+    def __init__(self, src, px, plate, col, vis, dark, scale, glass):
+        self.src, self.px, self.plate, self.col, self.vis = src, px, plate, col, vis
+        self.dark, self.glass = dark, glass
+        self.m = max(3, int(5 * scale))           # marge autour de la plaque : place pour la lueur
+        self.lift = max(1, int(2 * scale))        # l'icône se soulève de quelques pixels au survol
+        self.cache = {}
+
+    def get(self, h, g, pressed):
+        k = (round(h * (self.STEPS - 1)), round(g * 4), pressed)
+        if k not in self.cache:
+            self.cache[k] = ImageTk.PhotoImage(self._render(k[0] / (self.STEPS - 1), k[1] / 4, pressed))
+        return self.cache[k]
+
+    def _render(self, h, g, pressed):
+        from PIL import ImageDraw, ImageFilter
+        rgb = DesktopOrganizer._rgb
+        P, m, s = self.plate, self.m, 3
+        W = P + 2 * m
+        vis, col = self.vis, self.col
+        big = Image.new("RGBA", (W * s, W * s), (*rgb(vis), 0 if self.glass else 255))
+        amt = 0.30 * h + 0.65 * g
+        if amt > 0.01:   # lueur de la couleur du panneau sous la plaque
+            glow = Image.new("L", (W * s, W * s), 0)
+            ImageDraw.Draw(glow).rounded_rectangle((m * s, (m + 1) * s, (m + P) * s, (m + P + 1) * s),
+                                                   radius=int(P * s * 0.3), fill=int(255 * min(1.0, amt)))
+            glow = glow.filter(ImageFilter.GaussianBlur(m * s * 0.7))
+            big.paste(Image.new("RGBA", big.size, (*rgb(col), 255)), (0, 0), glow)
+        kt = (0.16 if self.dark else 0.12) + 0.16 * h + 0.40 * g
+        kb = (0.06 if self.dark else 0.05) + 0.10 * h + 0.30 * g
+        top = blend_hex(blend_hex(vis, col, kt), "#FFFFFF", 0.07 if self.dark else 0.25)
+        bot = blend_hex(vis, col, kb)
+        grad = Image.new("RGB", (1, 2))
+        grad.putdata([rgb(top), rgb(bot)])
+        grad = grad.resize((P * s, P * s), Image.BILINEAR)
+        mask = Image.new("L", (P * s, P * s), 0)
+        d = ImageDraw.Draw(mask)
+        d.rounded_rectangle((0, 0, P * s - 1, P * s - 1), radius=int(P * s * 0.28), fill=255)
+        big.paste(grad, (m * s, m * s), mask)
+        # reflet : un filet clair sur le haut de la plaque, comme une pastille de verre
+        hl = blend_hex(top, "#FFFFFF", 0.22 + 0.2 * h)
+        r = int(P * s * 0.28)
+        ImageDraw.Draw(big).line(((m * s + r, m * s + s), ((m + P) * s - r, m * s + s)), fill=rgb(hl), width=s)
+        out = big.resize((W, W), Image.LANCZOS)
+        size = int(self.px * 0.86) if pressed else self.px
+        icon = self.src if size == self.px else self.src.resize((size, size), Image.LANCZOS)
+        out.alpha_composite(icon, ((W - size) // 2, (W - size) // 2 - (0 if pressed else round(self.lift * h))))
+        return out if self.glass else out.convert("RGB")
+
+
 class IconLoader:
     SHGFI_SYSICONINDEX, SHGFI_PIDL = 0x4000, 0x8
 
@@ -488,46 +548,50 @@ class IconLoader:
                 continue
         return None
 
-    def get(self, path, px):
-        """PhotoImage de px×px pour le fichier / dossier / élément système, ou None."""
-        if IS_MAC and HAS_PIL and str(path).endswith(".app"):
-            key = (path, px)
-            if key not in self.cache:
-                img = self._mac_icon(path)
-                if img is None:
-                    return None
-                self.cache[key] = ImageTk.PhotoImage(img.resize((px, px), Image.LANCZOS))
-            return self.cache[key]
-        if not (IS_WIN and HAS_PIL):
-            return None
-        key = (path, px)
+    def pil(self, path, px):
+        """Image PIL (RGBA) de px×px pour le fichier / dossier / élément système, ou None."""
+        key = ("pil", path, px)
         if key in self.cache:
             return self.cache[key]
-        photo = None
+        img = None
         try:
-            idx = self._sys_index(path)
-            if idx is not None:
-                shil = 0 if px <= 32 else 2 if px <= 48 else 4  # LARGE / EXTRALARGE / JUMBO
-                img = self._icon(shil, idx)
-                if shil == 4 and img is not None:
-                    box = img.getbbox()  # icône sans version 256 px : petite image dans un coin
-                    if box and box[2] - box[0] <= 48 and box[3] - box[1] <= 48:
-                        img = self._icon(2, idx)
-                if img is not None:
-                    box = img.getbbox()  # petite icône collée dans un coin : on la recadre
-                    if box and box[0] <= 2 and box[1] <= 2 and max(box[2], box[3]) <= img.width * 0.6:
-                        side = max(box[2], box[3])
-                        img = img.crop((0, 0, side, side))
-                    if img.size != (px, px):
-                        img = img.resize((px, px), Image.LANCZOS)
-                    photo = ImageTk.PhotoImage(img)
+            if IS_MAC and HAS_PIL and str(path).endswith(".app"):
+                img = self._mac_icon(path)
+                img = img.resize((px, px), Image.LANCZOS) if img is not None else None
+            elif IS_WIN and HAS_PIL:
+                idx = self._sys_index(path)
+                if idx is not None:
+                    shil = 0 if px <= 32 else 2 if px <= 48 else 4  # LARGE / EXTRALARGE / JUMBO
+                    img = self._icon(shil, idx)
+                    if shil == 4 and img is not None:
+                        box = img.getbbox()  # icône sans version 256 px : petite image dans un coin
+                        if box and box[2] - box[0] <= 48 and box[3] - box[1] <= 48:
+                            img = self._icon(2, idx)
+                    if img is not None:
+                        box = img.getbbox()  # petite icône collée dans un coin : on la recadre
+                        if box and box[0] <= 2 and box[1] <= 2 and max(box[2], box[3]) <= img.width * 0.6:
+                            side = max(box[2], box[3])
+                            img = img.crop((0, 0, side, side))
+                        if img.size != (px, px):
+                            img = img.resize((px, px), Image.LANCZOS)
         except (OSError, ValueError):
-            photo = None
-        if photo is not None:  # un échec (bureau Windows pas encore prêt au démarrage) sera retenté
-            self.cache[key] = photo
-        else:
-            self.failed.add(key)
-        return photo
+            img = None
+        if img is None:   # un échec (bureau Windows pas encore prêt au démarrage) sera retenté
+            self.failed.add((path, px))
+            return None
+        img = img.convert("RGBA")
+        self.cache[key] = img
+        return img
+
+    def get(self, path, px):
+        """PhotoImage de px×px pour le fichier / dossier / élément système, ou None."""
+        key = (path, px)
+        if key not in self.cache:
+            img = self.pil(path, px)
+            if img is None:
+                return None
+            self.cache[key] = ImageTk.PhotoImage(img)
+        return self.cache[key]
 
 
 # --------------------------------------------------------------------------- #
@@ -841,25 +905,25 @@ class DesktopOrganizer:
         return self.app.root.winfo_fpixels("1i") / 96.0
 
     def _fill(self, win, cat, items):
-        """Panneau au même style que les cartes : palette du thème, verre acrylique (Windows), coins arrondis."""
+        """Panneau aux couleurs de sa catégorie : en-tête lumineux avec badge, icônes posées sur des plaques
+        arrondies qui s'éclairent et se soulèvent au survol."""
         c = self.cfg
         for ch in win.winfo_children():
             ch.destroy()
         style = c["org_cat_style"].get(cat, {})  # couleur / opacité propres au panneau
         cm = self.app.cards
         cm.theme_colors()
-        fg, sub, track = cm.fg, cm.sub, cm.track
-        acc = style.get("accent") or c["accent_color"]
+        fg, sub = cm.fg, cm.sub
+        col = style.get("accent") or CAT_COLORS.get(cat) or c["accent_color"]
         opacity = max(0.2, min(1.0, style.get("opacity", c["opacity"]) / 100))
         # Windows + flou : fond transparent (couleur clé) sous lequel Windows dessine un verre acrylique teinté
         glass = IS_WIN and bool(c.get("card_blur"))
         if glass:
             from cards import KEY, KEY_LIGHT
             bg = KEY if cm.dark else KEY_LIGHT
-            hover = blend_hex(cm.bg, fg, 0.10)
+            vis = cm.bg   # couleur réellement vue sous le verre
         else:
-            bg = cm.bg
-            hover = blend_hex(cm.bg, fg, 0.08)
+            bg = vis = blend_hex(cm.bg, col, 0.07 if cm.dark else 0.05)   # fond légèrement teinté
         win.configure(bg=bg)
         win.attributes("-topmost", bool(c["topmost"]))
         if glass:
@@ -880,37 +944,64 @@ class DesktopOrganizer:
 
         scale = self._scale()
         px = int(int(self.opt("org_icon")) * scale)
-        tile_w = max(px + int(24 * scale), int(84 * scale))
         fam = TEXT_FONT
         ts = max(8, round(10 * int(c["card_text_scale"]) / 100))
         f_tile = tkfont.Font(family=fam, size=max(7, ts - 1))
         collapsed = cat in c["org_collapsed"]
+        plate = px + 2 * max(4, int(px * 0.2))          # plaque arrondie sous l'icône
+        tile_w = max(plate + int(10 * scale), int(84 * scale))
 
         outer = tk.Frame(win, bg=bg)
         outer.pack(fill="both", expand=True)
         outer._fence_cat = cat
 
-        head = tk.Frame(outer, bg=bg, padx=14, pady=9)
+        # ----- en-tête : lueur de la couleur du panneau, badge, titre, compteur, filet qui s'estompe -----
+        hh = int(42 * scale)
+        head = tk.Canvas(outer, bg=bg, height=hh, highlightthickness=0, bd=0, width=tile_w)
         head.pack(fill="x")
         head._fence_cat = cat
-        # en-tête façon cartes : titre sobre, emoji teinté de l'accent, compteur discret
-        emo = tk.Label(head, text=self.emoji(cat), bg=bg, fg=acc, font=(fam, ts + 1))
-        emo.pack(side="left")
-        title = tk.Label(head, text=cat, bg=bg, fg=fg, font=(fam, ts + 1, "bold"))
-        title.pack(side="left", padx=(6, 0))
-        arrow = tk.Label(head, text="▸" if collapsed else "▾", bg=bg, fg=sub, font=(fam, ts))
-        arrow.pack(side="right")
-        count = tk.Label(head, text=str(len(items)), bg=bg, fg=sub, font=(fam, max(7, ts - 1)))
-        count.pack(side="right", padx=(0, 8))
-        for w in (head, emo, title, arrow, count):
-            w.bind("<ButtonPress-1>", lambda e: self._head_press(e))
-            w.bind("<B1-Motion>", self.app._do_drag)
-            w.bind("<ButtonRelease-1>", lambda e, k=cat: self._head_release(e, k))
-            bind_right_click(w, lambda e, k=cat: self._fence_menu(e, k))
+        f_title = (fam, ts + 1, "bold")
+        f_small = (fam, max(7, ts - 1), "bold")
+        light = blend_hex(col, "#FFFFFF", 0.35) if cm.dark else blend_hex(col, "#000000", 0.25)
+
+        def draw_head(_e=None):
+            w = max(head.winfo_width(), 50)
+            head.delete("all")
+            head._imgs = []
+            if HAS_PIL and not glass:
+                head._imgs.append(ImageTk.PhotoImage(self._head_glow(w, hh, vis, col, cm.dark)))
+                head.create_image(0, 0, anchor="nw", image=head._imgs[-1])
+            b = int(26 * scale)
+            x0, y0 = int(12 * scale), (hh - b) // 2
+            if HAS_PIL:
+                head._imgs.append(ImageTk.PhotoImage(self._badge(b, col, vis, scale)))
+                head.create_image(x0, y0, anchor="nw", image=head._imgs[-1])
+            head.create_text(x0 + b / 2, hh / 2, text=self.emoji(cat), fill="#FFFFFF", font=(fam, max(8, ts - 1)))
+            head.create_text(x0 + b + int(9 * scale), hh / 2, text=cat, fill=fg, font=f_title, anchor="w")
+            xr = w - int(12 * scale)
+            head.create_text(xr, hh / 2, text="▸" if collapsed else "▾", fill=sub, font=(fam, ts), anchor="e")
+            xr -= int(18 * scale)
+            n = head.create_text(xr - int(7 * scale), hh / 2, text=str(len(items)), fill=light, font=f_small,
+                                 anchor="e")
+            bb = head.bbox(n)
+            if bb and HAS_PIL:   # compteur dans une pastille
+                pw, ph = bb[2] - bb[0] + int(14 * scale), bb[3] - bb[1] + int(4 * scale)
+                head._imgs.append(ImageTk.PhotoImage(self._pill(pw, ph, blend_hex(vis, col, 0.22), vis)))
+                pill = head.create_image(bb[0] - int(7 * scale), hh / 2, anchor="w", image=head._imgs[-1])
+                head.tag_lower(pill, n)
+            if not collapsed and HAS_PIL:   # filet de la couleur du panneau, qui s'estompe vers la droite
+                head._imgs.append(ImageTk.PhotoImage(self._fade_line(w - int(24 * scale), max(1, int(scale)),
+                                                                     col, vis)))
+                head.create_image(int(12 * scale), hh - max(1, int(scale)), anchor="nw", image=head._imgs[-1])
+        head.bind("<Configure>", draw_head)
+        head.bind("<ButtonPress-1>", lambda e: self._head_press(e))
+        head.bind("<B1-Motion>", self.app._do_drag)
+        head.bind("<ButtonRelease-1>", lambda e, k=cat: self._head_release(e, k))
+        bind_right_click(head, lambda e, k=cat: self._fence_menu(e, k))
+        draw_head()
 
         if collapsed:
             return
-        tk.Frame(outer, bg=track, height=1).pack(fill="x", padx=14)   # filet discret, comme les cartes
         cols = max(1, int(self.opt("org_columns")))
         n_rows = -(-len(items) // cols)
         max_rows = int(self.opt("org_max_rows"))
@@ -925,7 +1016,7 @@ class DesktopOrganizer:
             canvas._fence_cat = cat
             track = tk.Frame(wrap, bg=bg, width=max(3, int(3 * scale)))
             track.pack(side="right", fill="y", padx=(0, 3), pady=6)
-            thumb = tk.Frame(track, bg=acc)
+            thumb = tk.Frame(track, bg=col)
             body = tk.Frame(canvas, bg=bg, padx=8, pady=8)
             canvas.create_window(0, 0, window=body, anchor="nw")
         else:
@@ -939,32 +1030,32 @@ class DesktopOrganizer:
             bind_right_click(w, lambda e, k=cat: self._fence_menu(e, k))
 
         for i, it in enumerate(items):
-            # pas d'option width sur la tuile : un simple configure(bg=…) au survol
-            # ferait alors redemander à Tk une hauteur nulle et masquerait son contenu
-            tile = tk.Frame(body, bg=bg, padx=3, pady=5, cursor="hand2")
+            tile = tk.Frame(body, bg=bg, padx=2, pady=4, cursor="hand2")
             tile.grid(row=i // cols, column=i % cols, sticky="n", padx=1, pady=1)
             tile._tile_path = it["path"]
             tile._fence_cat = cat
-            img = self.icons.get(it["path"], px)
-            if img is None:
+            src = self.icons.pil(it["path"], px) if HAS_PIL else None
+            if src is None:
                 self._icon_missing.add(cat)
+            plates = _Plates(src, px, plate, col, vis, cm.dark, scale, glass) if src is not None else None
+            img = plates.get(0, 0, False) if plates else None
             if img is not None:
-                # taille fixe : l'icône peut rétrécir à l'appui sans faire bouger la tuile
-                ico = tk.Label(tile, image=img, bg=bg, width=px + 4, height=px + 4)
-                ico.image = img
+                ico = tk.Label(tile, image=img, bg=bg, bd=0)
             else:
                 emoji = "📁" if it["is_dir"] else "🔗" if it["ext"] in APP_EXT else "📄"
                 ico = tk.Label(tile, text=emoji, bg=bg, fg=fg, font=(fam, max(12, int(px / scale * 0.55))))
-            ico.pack(pady=(2, 0))
+            ico.pack()
+            lbl = None
             if self.opt("org_labels"):
                 # hauteur fixe de 2 lignes : toutes les tuiles ont la même taille
-                tk.Label(tile, text=self._two_lines(it["name"], f_tile, tile_w - 6), bg=bg, fg=fg,
-                         font=f_tile, justify="center", width=0, height=2, anchor="n").pack()
+                lbl = tk.Label(tile, text=self._two_lines(it["name"], f_tile, tile_w - 6), bg=bg, fg=fg,
+                               font=f_tile, justify="center", width=0, height=2, anchor="n")
+                lbl.pack()
             # largeur fixe des tuiles : une bande invisible
-            tk.Frame(tile, width=(tile_w if self.opt("org_labels") else px + int(16 * scale)) - 4,
+            tk.Frame(tile, width=(tile_w if self.opt("org_labels") else plate + int(8 * scale)) - 4,
                      height=0, bg=bg).pack()
             parts = (tile, *tile.winfo_children())
-            tile._fx = self._tile_fx(tile, parts, ico, img, it["path"], px, bg, cm.bg, hover, acc)
+            tile._fx = self._tile_fx(tile, ico, lbl, plates, fg, light)
             for w in parts:
                 w._tile_path = it["path"]
                 w.bind("<Enter>", lambda e, t=tile: t._fx["hover"](1.0))
@@ -977,25 +1068,64 @@ class DesktopOrganizer:
         if scrolling:
             self._setup_scroll(cat, canvas, body, track, thumb, n_rows, max_rows)
 
-    def _tile_fx(self, tile, parts, ico, img, path, px, bg, vis_bg, hover, acc):
-        """Effets d'une tuile : fond qui s'allume en fondu et icône qui se soulève au survol, icône qui
-        s'enfonce à l'appui, halo de la couleur d'accent au lancement."""
+    # ----- images des panneaux (PIL) ---------------------------------------------------------------
+    @staticmethod
+    def _rgb(h):
+        return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+    def _head_glow(self, w, h, vis, col, dark):
+        """Lueur de la couleur du panneau, partie du coin haut gauche et fondue dans le fond."""
+        gw, gh = 24, 6
+        small = Image.new("RGB", (gw, gh))
+        k = 0.30 if dark else 0.20
+        small.putdata([self._rgb(blend_hex(vis, col, k * max(0.0, 1 - (x / (gw - 1)) * 1.25) ** 1.5 *
+                                           (1 - 0.45 * y / (gh - 1))))
+                       for y in range(gh) for x in range(gw)])
+        return small.resize((w, h), Image.BICUBIC)
+
+    def _badge(self, b, col, vis, scale):
+        """Pastille carrée arrondie, en dégradé de la couleur du panneau (pour l'emoji)."""
+        from PIL import ImageDraw
+        s = 3
+        top, bot = self._rgb(blend_hex(col, "#FFFFFF", 0.22)), self._rgb(blend_hex(col, "#000000", 0.18))
+        grad = Image.new("RGB", (1, 2))
+        grad.putdata([top, bot])
+        grad = grad.resize((b * s, b * s), Image.BILINEAR)
+        mask = Image.new("L", (b * s, b * s), 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, b * s - 1, b * s - 1), radius=int(b * s * 0.3), fill=255)
+        out = Image.new("RGB", (b * s, b * s), self._rgb(vis))
+        out.paste(grad, (0, 0), mask)
+        return out.resize((b, b), Image.LANCZOS)
+
+    def _pill(self, w, h, fill, vis):
+        from PIL import ImageDraw
+        s = 3
+        out = Image.new("RGB", (w * s, h * s), self._rgb(vis))
+        ImageDraw.Draw(out).rounded_rectangle((0, 0, w * s - 1, h * s - 1), radius=h * s // 2, fill=self._rgb(fill))
+        return out.resize((w, h), Image.LANCZOS)
+
+    def _fade_line(self, w, h, col, vis):
+        small = Image.new("RGB", (16, 1))
+        small.putdata([self._rgb(blend_hex(col, vis, min(1.0, x / 15 * 1.1) ** 0.8)) for x in range(16)])
+        return small.resize((max(1, w), h), Image.BILINEAR)
+
+    def _tile_fx(self, tile, ico, lbl, plates, fg, light):
+        """Effets d'une tuile : la plaque s'éclaire en fondu et l'icône se soulève au survol, l'icône
+        s'enfonce à l'appui, la plaque s'illumine de la couleur du panneau au lancement."""
         a = self.app.anim
         key = ("tile", str(tile))
-        state = {"h": 0.0, "glow": 0.0}
+        state = {"h": 0.0, "glow": 0.0, "press": False}
 
         def paint():
-            h, g = state["h"], state["glow"]
-            if h <= 0.01 and g <= 0.01:
-                col = bg   # repos : fond transparent (verre) ou couleur du panneau
-            else:
-                col = anim.mix(anim.mix(vis_bg, hover, h), acc, 0.5 * g)
-            for x in parts:
-                if x.winfo_exists():
-                    x.configure(bg=col)
-            lift = h > 0.5 and g <= 0.01
-            if ico.winfo_exists():
-                ico.pack_configure(pady=(0, 2) if lift else (2, 0))
+            if plates is None or not ico.winfo_exists():
+                return
+            img = plates.get(state["h"], state["glow"], state["press"])
+            if img is not None and ico.cget("image") != str(img):
+                ico.configure(image=img)
+            if lbl is not None and lbl.winfo_exists():
+                c = anim.mix(fg, light, 0.6 * state["h"])
+                if lbl.cget("fg") != c:
+                    lbl.configure(fg=c)
 
         def hover_to(to):
             h0 = state["h"]
@@ -1003,26 +1133,21 @@ class DesktopOrganizer:
             def step(p):
                 state["h"] = anim.lerp(h0, to, p)
                 paint()
-            a.play(key, 150 if to > h0 else 260, step, anim.ease_out)
-
-        small = {}
+            a.play(key, 160 if to > h0 else 280, step, anim.ease_out)
 
         def press():
-            if img is None or not ico.winfo_exists():
-                return
-            if "img" not in small:
-                small["img"] = self.icons.get(path, int(px * 0.84)) or img
-            ico.configure(image=small["img"])
+            state["press"] = True
+            paint()
 
         def release():
-            if img is not None and ico.winfo_exists():
-                ico.configure(image=img)
+            state["press"] = False
+            paint()
 
         def glow():
             def step(p):
                 state["glow"] = 1 - p
                 paint()
-            a.play(("glow", str(tile)), 700, step, anim.ease_out)
+            a.play(("glow", str(tile)), 750, step, anim.ease_out)
         return {"hover": hover_to, "press": press, "release": release, "glow": glow}
 
     def _setup_scroll(self, cat, canvas, body, track, thumb, n_rows, max_rows):

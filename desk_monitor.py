@@ -735,6 +735,17 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             c["eco_battery"] = False
             c["migrated"] = 5
             save_config(c)
+        if c.get("migrated", 0) < 6:   # 2.4.0 : l'écran de verrouillage n'est plus géré par DeskMonitor
+            if IS_WIN and (c.get("lock_enabled") or c.get("wallpaper_lock_too")):
+                # l'image gardait la date du jour incrustée : on remet l'image seule, une dernière fois
+                base = next((p for p in (c.get("lock_image"), c.get("wallpaper_last"))
+                             if p and os.path.isfile(p)), None)
+                if base:
+                    import lockscreen
+                    threading.Thread(target=lockscreen.apply_plain, args=(base,), daemon=True).start()
+            c["lock_enabled"] = c["wallpaper_lock_too"] = False
+            c["migrated"] = 6
+            save_config(c)
 
     def _start_drag(self, e):
         win = e.widget.winfo_toplevel()

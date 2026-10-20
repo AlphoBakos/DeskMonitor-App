@@ -31,7 +31,7 @@ Depuis ta 1.5.0, la branche `AK_Update` a reçu cinq mises à jour, de la 1.5.1 
 | `desk_monitor.py` | `DeskWidget` : construction des widgets, mesures, positions, boucles, menu ; démarrage (`main`). |
 | `app_voice.py` | Voix : synthèse, récapitulatif parlé, annonces de ce qui passe dans le rouge. |
 | `app_assistant.py` | Assistant : écoute, compréhension (`answer`), actions demandées (`_do_action`). |
-| `app_wallpaper.py` | Fonds d'écran, écran de verrouillage, fond assorti, fond vivant. |
+| `app_wallpaper.py` | Fonds d'écran, fond assorti, fond vivant. |
 | `app_updates.py` | Mises à jour depuis GitHub. |
 | `app_alerts.py` | Alertes et notifications. |
 | `app_actions.py` | Actions d'entretien (cache, RAM, DNS…) et formulaires de retour GitHub. |
@@ -54,7 +54,7 @@ Depuis ta 1.5.0, la branche `AK_Update` a reçu cinq mises à jour, de la 1.5.1 
 
 ### Paramètres (`settings_ui.py`)
 
-- Pages : Apparence, Widgets, Heure et date, Applications, Fond d'écran, Écran de verrouillage, Assistant, Alertes, Profils, Général, À propos.
+- Pages : Apparence, Widgets, Heure et date, Applications, Fond d'écran, Assistant, Alertes, Profils, Général, À propos.
 - Les pages « Monitoring » et « Cartes et fond vivant » n'existent plus. Leur contenu est réparti ailleurs :
   - le fond vivant est dans « Fond d'écran » ;
   - le raccourci et l'infobulle sont dans « Général » ;

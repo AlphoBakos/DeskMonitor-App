@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Fonds d'écran, écran de verrouillage, fond assorti et fond d'écran vivant."""
+"""Fonds d'écran, fond assorti et fond d'écran vivant."""
 import os
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 
 
 import psutil
 
 from profiles import theme_from_wallpaper, wallpaper_signature
-import lockscreen
 import wallpaper_dynamic
 import wallpapers
 
@@ -37,7 +35,7 @@ class WallpaperMixin:
             pass
         self.root.after(10000, self._wallpaper_loop)
 
-    # ----- Fonds d'écran et écran de verrouillage ------------------------------
+    # ----- Fonds d'écran -------------------------------------------------------
     def _in_background(self, func, done=None, error_title=None):
         """Exécute func() dans un thread ; done(résultat) ou l'erreur reviennent dans l'interface."""
         def worker():
@@ -55,10 +53,7 @@ class WallpaperMixin:
         c = self.cfg
 
         def work():
-            used = wallpapers.set_wallpaper(path, c["wallpaper_fit"])
-            if c["wallpaper_lock_too"] or (c["lock_enabled"] and not c["lock_image"]):
-                self._make_lockscreen(base=used)
-            return used
+            return wallpapers.set_wallpaper(path, c["wallpaper_fit"])
 
         def done(_used):
             c["wallpaper_last"] = path
@@ -67,37 +62,10 @@ class WallpaperMixin:
             if not quiet:
                 self.set_status(f"Fond d'écran : {Path(path).stem}")
             if self.settings_win and self.settings_win.win.winfo_exists() and \
-                    self.settings_win.page in ("wallpapers", "lock"):
+                    self.settings_win.page == "wallpapers":
                 self.settings_win.refresh()
 
         self._in_background(work, done, None if quiet else "Fond d'écran")
-
-    def lock_base_image(self):
-        c = self.cfg
-        for p in (c["lock_image"], c["wallpaper_last"], wallpapers.current_wallpaper()):
-            if p and os.path.isfile(p):
-                return p
-        items = wallpapers.list_wallpapers()
-        return items[0][1] if items else None
-
-    def _make_lockscreen(self, base=None):
-        """(thread) compose et applique l'image de l'écran de verrouillage."""
-        base = base if (base and not self.cfg["lock_image"]) else self.lock_base_image()
-        if not base:
-            raise OSError("Aucune image disponible pour l'écran de verrouillage.")
-        lockscreen.apply_image(lockscreen.compose(self.cfg, base))
-        self.cfg["lock_last_date"] = datetime.now().strftime("%Y-%m-%d")
-
-    def update_lockscreen(self, manual=False):
-        def done(_):
-            self.save()
-            if manual:
-                self.notify("Écran de verrouillage", "Votre écran de verrouillage a été mis à jour.\n"
-                                                     "Appuyez sur Windows + L pour le voir.")
-
-        if manual:
-            self.cfg["lock_enabled"] = True
-        self._in_background(self._make_lockscreen, done, "Écran de verrouillage" if manual else None)
 
     def _dynamic_wallpaper_loop(self):
         """Recompose le fond d'écran quand l'heure, l'état ou les mesures changent (au plus une fois par minute)."""
@@ -156,7 +124,7 @@ class WallpaperMixin:
         self.root.after(60000, self._dynamic_wallpaper_loop)
 
     def _wallpaper_timers(self):
-        """Diaporama de fonds d'écran + date de l'écran de verrouillage remise à jour chaque jour."""
+        """Diaporama de fonds d'écran."""
         c = self.cfg
         try:
             if c["slideshow"] and time.time() - self._slide_time >= max(1, c["slideshow_minutes"]) * 60:
@@ -164,10 +132,6 @@ class WallpaperMixin:
                 if nxt:
                     self.apply_wallpaper(nxt, quiet=True)
                 self._slide_time = time.time()
-            if c["lock_enabled"] and c["lock_show_date"] and \
-                    c["lock_last_date"] != datetime.now().strftime("%Y-%m-%d"):
-                self.cfg["lock_last_date"] = datetime.now().strftime("%Y-%m-%d")  # une tentative par jour
-                self.update_lockscreen()
         except Exception:  # noqa: BLE001
             pass
         self.root.after(30000, self._wallpaper_timers)

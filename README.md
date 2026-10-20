@@ -21,7 +21,7 @@ Des widgets pour le bureau de Windows et de macOS : la machine en un coup d'œil
   - « libère la mémoire » ;
   - « fais le point », « la météo », « range le bureau ».
 - **Apparence soignée** : verre dépoli, thème clair ou sombre, couleur d'accent du système, animations fluides.
-- **Fonds d'écran et écran de verrouillage** : une collection de fonds originaux, un diaporama, un fond « vivant » qui suit l'heure, et un écran de verrouillage avec la date.
+- **Fonds d'écran** : une collection de fonds originaux, un diaporama et un fond « vivant » qui suit l'heure.
 - **Alertes, profils et mises à jour automatiques.**
 - **En français et en anglais** : Paramètres › Général › Langue, ou dès l'accueil au premier lancement.
 

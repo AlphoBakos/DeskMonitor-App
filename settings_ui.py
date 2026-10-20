@@ -17,7 +17,6 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
 
 import i18n
-import lockscreen
 from i18n import tr
 import profiles as prof
 import wallpapers
@@ -326,10 +325,6 @@ class SettingsWindow:
         self.app.schedule_rebuild()
         if key in self.RELAYOUT_KEYS:   # options qui font apparaître / disparaître d'autres réglages
             self.win.after(250, self.refresh)
-        if key.startswith("lock_") and getattr(self, "_preview_lbl", None) is not None:
-            if getattr(self, "_preview_after", None):
-                self.win.after_cancel(self._preview_after)
-            self._preview_after = self.win.after(350, self._update_preview)  # aperçu en direct
 
     # ----- barre latérale -------------------------------------------------------
     PAGES = [
@@ -338,7 +333,6 @@ class SettingsWindow:
         ("clock", "◷", "Heure et date", "Format de l'heure et de la date"),
         ("desktop", "▦", "Applications", "Vos applications rangées en panneaux sur le bureau"),
         ("wallpapers", "◩", "Fond d'écran", "Collection, diaporama et fond d'écran vivant"),
-        ("lock", "◫", "Écran de verrouillage", "Image, date et message de l'écran de verrouillage"),
         ("assistant", "◌", "Assistant", "Votre prénom, la voix et les commandes vocales"),
         ("alerts", "◉", "Alertes", "Notifications quand la machine souffre"),
         ("profiles", "◍", "Profils", "Changer toute l'apparence en un clic"),
@@ -348,8 +342,8 @@ class SettingsWindow:
     RELAYOUT_KEYS = ("layout", "accent_mode", "mac_theme", "card_blur", "org_enabled", "voice_lang", "assistant_on")
 
     def pages(self):
-        """Pages disponibles sur ce système (l'écran de verrouillage n'est personnalisable que sous Windows)."""
-        return [p for p in self.PAGES if IS_WIN or p[0] != "lock"]
+        """Pages disponibles sur ce système."""
+        return list(self.PAGES)
 
     def _build_sidebar(self):
         s = self.side
@@ -767,8 +761,6 @@ class SettingsWindow:
             ("Collection", [X(self._wallpaper_gallery)]),
             ("Options", [
                 C("wallpaper_fit", "Disposition de l'image", wallpapers.FIT_LABELS, cond=not is_packaged()),
-                T("wallpaper_lock_too", "Utiliser aussi pour l'écran de verrouillage",
-                  "Avec la date et le message choisis dans « Écran de verrouillage »"),
             ]),
             ("Diaporama", [
                 T("slideshow", "Changer de fond d'écran automatiquement"),
@@ -783,41 +775,6 @@ class SettingsWindow:
                   "Rouge si CPU ou RAM saturés, sombre si batterie faible, terne hors ligne"),
                 T("wp_dyn_stats", "Jauges CPU / RAM / disque sur le fond", "Mises à jour au plus toutes les 3 minutes"),
                 self._note("Couleur des widgets assortie au fond d'écran : Apparence › Couleur d'accent."),
-            ]),
-        ]
-
-    def p_lock(self):
-        now = datetime.now()
-        formats = {k: format_date(now, {"date_format": k}) for k in DATE_FORMATS}
-        return [
-            ("Aperçu", [X(self._lock_preview)]),
-            ("Image", [X(self._lock_image_picker)]),
-            ("Date et message", [
-                T("lock_show_date", "Afficher la date", "Remise à jour automatiquement chaque jour"),
-                C("lock_date_format", "Format de la date", formats, width=28),
-                C("lock_date_case", "Majuscules", DATE_CASES),
-                TXT("lock_text", "Message personnel", "Ex. : votre nom, une citation… (laisser vide pour aucun)",
-                    width=30),
-                F("lock_font", "Police"),
-                N("lock_size", "Taille", 16, 160, 4, "pt"),
-                COL("lock_color", "Couleur du texte"),
-                C("lock_pos", "Position", lockscreen.POSITIONS),
-                T("lock_bold", "Gras"),
-                T("lock_shadow", "Ombre portée", "Améliore la lisibilité sur les images claires"),
-            ]),
-            ("Effets", [
-                SL("lock_dim", "Assombrir l'image", 0, 80, "%"),
-                SL("lock_blur", "Flou", 0, 30, "px"),
-            ]),
-            ("Windows", [
-                T("lock_enabled", "Gérer l'écran de verrouillage avec DeskMonitor",
-                  "Garde la date à jour chaque jour"),
-                T(None, "Horloge en 24 heures", "Réglage de Windows : s'applique aussi à la barre des tâches",
-                  cond=IS_WIN and not is_packaged(), get=lockscreen.clock_24h,
-                  set=lambda v: lockscreen.set_clock_24h(v)),
-                T(None, "Astuces et publicités de Windows", "Textes « Le saviez-vous ? », suggestions…",
-                  cond=IS_WIN and not is_packaged(), get=lockscreen.tips_enabled,
-                  set=lambda v: lockscreen.set_tips(v)),
             ]),
         ]
 
@@ -1059,66 +1016,6 @@ class SettingsWindow:
                                          "de la collection ?", parent=self.win):
             wallpapers.remove_image(path)
             self.refresh()
-
-    def _lock_image_picker(self, parent):
-        self._thumbs = getattr(self, "_thumbs", [])
-        sel = self.cfg["lock_image"]
-        tiles = [("🖥\nMême image que le fond d'écran", None, lambda: self._set_lock_image(""), None)]
-        for name, path, _ in wallpapers.list_wallpapers():
-            tiles.append((name, path, lambda p=path: self._set_lock_image(p), None))
-        tiles.append(("📂\nAutre image…", None, self._pick_lock_file, None))
-        if sel and not any(os.path.normcase(sel) == os.path.normcase(p) for _, p, _ in wallpapers.list_wallpapers()):
-            tiles.insert(1, (os.path.splitext(os.path.basename(sel))[0], sel, lambda: None, None))
-        if not sel:
-            tk.Label(parent, text="✔ Utilise actuellement la même image que le fond d'écran", bg=UI["card"],
-                     fg=self.accent, font=(FONT, 9)).pack(anchor="w", pady=(0, 6))
-        self._image_grid(parent, tiles, sel or None)
-
-    def _set_lock_image(self, path):
-        self.cfg["lock_image"] = path
-        self.app.save()
-        self.refresh()
-
-    def _pick_lock_file(self):
-        path = filedialog.askopenfilename(parent=self.win, title="Image de l'écran de verrouillage",
-                                          filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp *.webp")])
-        if path:
-            self._set_lock_image(wallpapers.add_images([path])[0])  # copiée dans la collection
-
-    def _lock_preview(self, parent):
-        bg = UI["card"]
-        box = tk.Frame(parent, bg=bg)
-        box.pack(fill="x")
-        self._preview_lbl = tk.Label(box, bg=UI["field"], text="Préparation de l'aperçu…", fg=UI["muted"])
-        self._preview_lbl.pack(side="left")
-        side = tk.Frame(box, bg=bg)
-        side.pack(side="left", fill="y", padx=(18, 0))
-        tk.Label(side, text="L'horloge de Windows reste affichée\nau-dessus : sa police et sa position\n"
-                            "ne peuvent pas être modifiées.", bg=bg, fg=UI["muted"], font=(FONT, 9),
-                 justify="left").pack(anchor="w")
-        FlatButton(side, "Appliquer à l'écran de verrouillage", lambda: self.app.update_lockscreen(True),
-                   self.accent, primary=True).pack(anchor="w", pady=(12, 6))
-        tk.Label(side, text="Astuce : Windows + L pour voir le résultat.", bg=bg, fg=UI["muted"],
-                 font=(FONT, 8)).pack(anchor="w")
-        self.win.after(50, self._update_preview)
-
-    def _update_preview(self):
-        self._preview_after = None
-        lbl = getattr(self, "_preview_lbl", None)
-        if lbl is None or not lbl.winfo_exists():
-            return
-        base = self.app.lock_base_image()
-        if not base:
-            lbl.configure(text="Aucune image disponible")
-            return
-        try:
-            from PIL import ImageTk
-            w = int(360 * self.scale)
-            img = lockscreen.compose(self.cfg, base, size=(960, 540)).resize((w, int(w * 9 / 16)))
-            self._preview_img = ImageTk.PhotoImage(img, master=self.win)
-            lbl.configure(image=self._preview_img, text="")
-        except Exception as ex:  # noqa: BLE001
-            lbl.configure(text=f"Aperçu impossible : {ex}")
 
     def _panels_table(self, parent):
         org = self.app.organizer
