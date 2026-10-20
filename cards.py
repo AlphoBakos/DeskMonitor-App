@@ -620,6 +620,16 @@ class ClockCard(Card):
         self.swap_text(self.t, now.strftime(fmt) + ("" if c["show_seconds"] else ampm))
         self.swap_text(self.dt, format_date(now, c), rise=3)
         self._light(now.second)
+        h = now.hour + now.minute / 60
+        if 5 <= h < 8:
+            sky = ("#FF9E6B", "#6A5ACD")      # aube
+        elif 8 <= h < 17:
+            sky = ("#7EC8FF", "#2E6FD0")      # jour
+        elif 17 <= h < 20.5:
+            sky = ("#FF7A45", "#8A3FA0")      # coucher de soleil
+        else:
+            sky = ("#5B6CD8", "#141E4A")      # nuit
+        self.ambient(*sky, strength=0.7, ms=3000)
 
     def _seconds(self):
         """Secondes à droite de l'heure (elles suivent l'heure quand elle change en fondu)."""
@@ -709,6 +719,7 @@ class StorageCard(Card):
         self.header("Stockage")
         self.chip("Nettoyer", lambda fin: self.app.action_clean(fin))
         self.ring_ = self.ring(self.px / 2, 80, 46, 9)
+        self.ring_.heat = self.heat
         self.lbl = self.text(self.px / 2, 80, "", 22, False, anchor="center", num=True)
         self.leg = self.text(self.px / 2, self.py - 12, "", 11, False, self.m.sub, anchor="s")
 
@@ -716,8 +727,9 @@ class StorageCard(Card):
         u = d["disk"]
         if not u:
             return
-        self.ring_.set(u.percent, self.m.warn if u.percent >= self.m.cfg["warn_threshold"] else self.m.accent)
+        self.ring_.set(u.percent)
         self.count(self.lbl, "disk", u.percent, lambda v: f"{v:.0f}%")
+        self.ambient(self.m.warn if u.percent >= self.m.cfg["warn_threshold"] else None, strength=0.75)
         self.set(self.leg, text=tr("{} libres").format(fmt_bytes(u.free)))
 
 
@@ -741,6 +753,7 @@ class NetworkCard(Card):
         p = d["ping"]
         self.set(self.hdr_r, text="hors ligne" if p is None else ("" if p == "…" else f"ping {p:.0f} ms"),
                  fill=self.m.warn if (p is None or (p != "…" and p >= 150)) else self.m.sub)
+        self.ambient(self.m.warn if p is None else self.m.hot if p != "…" and p >= 150 else None, strength=0.75)
         data = list(d["hist_down"])[-61:]
         if len(data) < 3:
             return
@@ -919,6 +932,10 @@ class CalendarCard(Card):
             rows = [("", "Rien de prévu aujourd'hui ni demain")]
         else:
             today = datetime.now().date()
+            first = next((start for _t, start, allday in ev if not allday), None)
+            mins = (first - datetime.now()).total_seconds() / 60 if first else None
+            self.ambient(self.m.good if mins is not None and mins <= 0 else
+                         self.m.accent if mins is not None and mins <= 30 else None, strength=0.8)
             for title, start, allday in ev[:3]:
                 when = "jour" if allday else start.strftime("%H:%M")
                 if start.date() != today:
@@ -1236,6 +1253,8 @@ class ProcessCard(Card):
     def update(self, d):
         self.rows = d["procs"] or []
         top = max([r[0] for r in self.rows] + [1.0])
+        thr = self.m.cfg["warn_threshold"]
+        self.ambient(self.m.warn if top >= thr else self.m.hot if top >= 50 else None, strength=0.7)
         for i in range(self.n):
             r = self.rows[i] if i < len(self.rows) else None
             self.set(self.names[i], text=_trunc(r[3], 20) if r else "")
@@ -1282,6 +1301,7 @@ class NotesCard(Card):
         w.protocol("WM_DELETE_WINDOW", close)
 
     def update(self, d):
+        self.ambient("#F5C451", "#C98A2E", strength=0.45)
         note = self.m.cfg["quick_note"]
         self.set(self.body, text=_trunc(note, 120) if note else "Une idée, un numéro, une tâche : notez-la ici.",
                  fill=self.m.fg if note else self.m.sub)
@@ -1313,6 +1333,7 @@ class ClipboardCard(Card):
                 pass
 
     def update(self, d):
+        self.ambient(self.m.accent2, strength=0.4)
         self.items = list(d["clips"])
         for i, r in enumerate(self.rows):
             self.set(r, text=_trunc(self.items[i], 40) if i < len(self.items) else
