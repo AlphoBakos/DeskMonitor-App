@@ -488,10 +488,16 @@ class Card:
             return
         bg = self.m.bg
         k = (0.30 if self.m.dark else 0.20) * strength
-        tgt = (glow or bg, base or glow or bg, k if glow else 0.0)
-        if tgt == getattr(self, "_amb_t", None):
+        req = (glow, base, k if glow else 0.0)
+        # même demande qu'avant (cas de presque chaque seconde) : rien à faire, rien à redessiner
+        if req == getattr(self, "_amb_req", None):
             return
+        self._amb_req = req
+        tgt = (glow or bg, base or glow or bg, req[2])
         cur = getattr(self, "_amb", None) or (tgt[0], tgt[1], 0.0)
+        if cur[2] == 0 and tgt[2] == 0:   # fond neutre qui reste neutre
+            self._amb_t = tgt
+            return
         if cur[2] == 0:   # depuis un fond neutre : seule l'intensité varie
             cur = (tgt[0], tgt[1], 0.0)
         elif tgt[2] == 0:
@@ -520,6 +526,35 @@ class Card:
         c = blend(self.m.bg, base, k * (0.28 + 0.55 * g2))
         return blend(c, glow, k * 1.25 * g1)
 
+    _amb_grid = {}
+
+    @classmethod
+    def _amb_weights(cls, gw, gh):
+        """Poids des deux lumières pour chaque point de la petite grille (calculés une seule fois)."""
+        import math
+        if (gw, gh) not in cls._amb_grid:
+            pts = []
+            for y in range(gh):
+                for x in range(gw):
+                    u, v = x / (gw - 1), y / (gh - 1)
+                    g1 = max(0.0, 1 - math.hypot(u, v * 1.5) / 1.15) ** 1.6
+                    g2 = max(0.0, 1 - math.hypot(1 - u, (1 - v) * 1.5) / 1.4) ** 1.3
+                    pts.append((0.28 + 0.55 * g2, 1.25 * g1))
+            cls._amb_grid[(gw, gh)] = pts
+        return cls._amb_grid[(gw, gh)]
+
+    def _amb_pixels(self, gw, gh, glow, base, k):
+        """Mêmes couleurs que _amb_color, calculées d'un coup (quelques dixièmes de milliseconde)."""
+        def rgb(h):
+            return int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16)
+        bg, gl, ba = rgb(self.m.bg), rgb(glow), rgb(base)
+        out = []
+        for w2, w1 in self._amb_weights(gw, gh):
+            a2, a1 = k * w2, k * w1
+            c = [b + (t - b) * a2 for b, t in zip(bg, ba)]
+            out.append(tuple(round(v + (t - v) * a1) for v, t in zip(c, gl)))
+        return out
+
     def _amb_paint(self):
         from PIL import Image, ImageDraw, ImageTk
         glow, base, k = self._amb
@@ -532,8 +567,7 @@ class Card:
             self._amb_mask = m.resize((self.wpx, self.wpy), Image.LANCZOS)
         gw, gh = 32, 16
         small = Image.new("RGB", (gw, gh))
-        small.putdata([tuple(int(self._amb_color(x / (gw - 1), y / (gh - 1), glow, base, k)[i:i + 2], 16)
-                             for i in (1, 3, 5)) for y in range(gh) for x in range(gw)])
+        small.putdata(self._amb_pixels(gw, gh, glow, base, k))
         img = small.resize((self.wpx, self.wpy), Image.BICUBIC)
         img.putalpha(self._amb_mask)
         self._amb_photo = ImageTk.PhotoImage(img)
