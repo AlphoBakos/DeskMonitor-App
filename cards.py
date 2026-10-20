@@ -64,7 +64,7 @@ class Ring:
     def __init__(self, canvas, cx, cy, r, length, color, track, stroke=2.4):
         import math
         self.c, self.value, self.target, self.color, self.track = canvas, 0.0, 0.0, color, track
-        self.ticks, self.lit, self.fills = [], None, {}
+        self.ticks, self.lit, self.fills, self.heat = [], None, {}, None
         for i in range(self.N):
             a = math.radians(90 - i * 360 / self.N)
             r0 = r - length / 2 - (1.5 if i % 12 == 0 else 0)   # repères aux quarts, un peu plus longs
@@ -82,6 +82,10 @@ class Ring:
         d = self.target - self.value
         if abs(d) >= 0.05:
             self.value += d * 0.16   # ressort amorti (30 images/s)
+        if self.heat:
+            col = self.heat(self.value)
+            if col != self.color:
+                self.color, self.lit = col, None
         exact = self.value / 100 * self.N
         n = int(exact)
         frac = round((exact - n) * 4) / 4   # le trait suivant s'allume progressivement (4 nuances)
@@ -142,6 +146,7 @@ class Card:
         r, w, h = min(int(self.m.cfg["card_radius"]), self.px // 2), self.px - 1, self.py - 1
         if self.win_blur:   # même arrondi que celui dessiné par Windows 11 (8 px)
             r = 8
+        self._radius = r
         pts = []
         for cx, cy, a0 in ((w - r, r, -90), (w - r, h - r, 0), (r, h - r, 90), (r, r, 180)):
             import math
@@ -475,6 +480,81 @@ class Card:
             cache[item] = color
             self.cv.itemconfigure(item, fill=color)
 
+    # ----- ambiance : fond en dégradé lumineux, teinté selon ce que montre la carte ---------
+    def ambient(self, glow=None, base=None, strength=1.0, ms=1400):
+        """Teinte le fond : une lumière `glow` venue du coin haut gauche, une teinte `base` en bas à droite.
+        glow=None : fond neutre. Le passage d'une ambiance à l'autre se fait en fondu."""
+        if self.win_blur or self.native or not IS_WIN and not IS_MAC:
+            return
+        bg = self.m.bg
+        k = (0.30 if self.m.dark else 0.20) * strength
+        tgt = (glow or bg, base or glow or bg, k if glow else 0.0)
+        if tgt == getattr(self, "_amb_t", None):
+            return
+        cur = getattr(self, "_amb", None) or (tgt[0], tgt[1], 0.0)
+        if cur[2] == 0:   # depuis un fond neutre : seule l'intensité varie
+            cur = (tgt[0], tgt[1], 0.0)
+        elif tgt[2] == 0:
+            tgt = (cur[0], cur[1], 0.0)
+        self._amb_t = tgt
+
+        def step(p):
+            self._amb = (anim.mix(cur[0], tgt[0], p), anim.mix(cur[1], tgt[1], p), anim.lerp(cur[2], tgt[2], p))
+            self._amb_paint()
+        if self.app.anim.on:
+            self.app.anim.play(("amb", self.title), ms, step, anim.ease_out)
+        else:
+            step(1.0)
+
+    def bg_at(self, x, y, final=True):
+        """Couleur réelle du fond au point (x, y) de la carte (coordonnées logiques)."""
+        a = getattr(self, "_amb_t" if final else "_amb", None)
+        if not a or not a[2]:
+            return self.m.bg
+        return self._amb_color(x / self.px, y / self.py, *a)
+
+    def _amb_color(self, u, v, glow, base, k):
+        import math
+        g1 = max(0.0, 1 - math.hypot(u, v * 1.5) / 1.15) ** 1.6     # lumière du coin haut gauche
+        g2 = max(0.0, 1 - math.hypot(1 - u, (1 - v) * 1.5) / 1.4) ** 1.3
+        c = blend(self.m.bg, base, k * (0.28 + 0.55 * g2))
+        return blend(c, glow, k * 1.25 * g1)
+
+    def _amb_paint(self):
+        from PIL import Image, ImageDraw, ImageTk
+        glow, base, k = self._amb
+        if getattr(self, "_amb_mask", None) is None:   # forme arrondie de la carte (bord lissé), calculée une fois
+            s = 3
+            m = Image.new("L", (self.wpx * s, self.wpy * s), 0)
+            r = max(1, (self._radius * self.kx - 1) * s)
+            ImageDraw.Draw(m).rounded_rectangle((s, s, self.wpx * s - s - 1, self.wpy * s - s - 1), radius=r,
+                                                fill=255)
+            self._amb_mask = m.resize((self.wpx, self.wpy), Image.LANCZOS)
+        gw, gh = 32, 16
+        small = Image.new("RGB", (gw, gh))
+        small.putdata([tuple(int(self._amb_color(x / (gw - 1), y / (gh - 1), glow, base, k)[i:i + 2], 16)
+                             for i in (1, 3, 5)) for y in range(gh) for x in range(gw)])
+        img = small.resize((self.wpx, self.wpy), Image.BICUBIC)
+        img.putalpha(self._amb_mask)
+        self._amb_photo = ImageTk.PhotoImage(img)
+        item = getattr(self, "_amb_item", None)
+        if item is None:
+            self._amb_item = self.cv.create_image(0, 0, anchor="nw", image=self._amb_photo)
+            self.cv.tag_raise(self._amb_item, self.bd)   # juste au-dessus du fond, sous tout le reste
+        else:
+            self.cv.itemconfigure(item, image=self._amb_photo)
+
+    def heat(self, pct, cool=None):
+        """Couleur d'une jauge selon la charge : couleur normale, puis orange, puis rouge au-delà du seuil."""
+        m, thr = self.m, self.m.cfg["warn_threshold"]
+        cool = cool or m.accent
+        pct = round(pct)
+        if pct < thr - 25:
+            return cool
+        if pct < thr:
+            return blend(cool, m.hot, (pct - thr + 25) / 25)
+        return blend(m.hot, m.warn, min(1.0, (pct - thr + 1) / 10))
+
     def rescale(self):
         """Adapte le dessin à la mise à l'échelle de l'écran (Windows, DPI > 100 %)."""
         if abs(self.kx - 1) < 0.005 and abs(self.ky - 1) < 0.005:
@@ -582,6 +662,7 @@ class SystemCard(Card):
         self.header("Système")
         cx, cy = self.px / 2, 72
         self.cpu = self.ring(cx, cy, 40, 8)
+        self.cpu.heat = self.heat
         self.lbl = self.text(cx, cy - 4, "", 20, False, anchor="center", num=True)
         cpu_lbl = self.text(cx, cy + 15, "CPU ›", 9, False, self.m.sub, anchor="center", num=True)
         # la jauge ouvre la liste des programmes qui utilisent le processeur (on peut les fermer)
@@ -598,12 +679,13 @@ class SystemCard(Card):
 
     def update(self, d):
         thr = self.m.cfg["warn_threshold"]
-        self.cpu.set(d["cpu"], self.m.warn if d["cpu"] >= thr else self.m.accent)
+        self.cpu.set(d["cpu"])
         self.count(self.lbl, "cpu", d["cpu"], lambda v: f"{v:.0f}%")
-        col = self.m.warn if d["ram"] >= thr else self.m.accent2
-        self.set(self.ram_val, fill=col)
+        self.set(self.ram_val, fill=self.heat(d["ram"], self.m.accent2))
         self.count(self.ram_val, "ram", d["ram"], lambda v: f"{v:.0f}%")
-        self._ram_target, self._ram_col_t = d["ram"], col
+        self._ram_target = d["ram"]
+        hot = max(d["cpu"], d["ram"])
+        self.ambient(self.m.warn if hot >= thr else None, strength=0.75)   # surcharge : lueur rouge
 
     def frame(self):
         tgt = getattr(self, "_ram_target", None)
@@ -614,7 +696,7 @@ class SystemCard(Card):
         self._ram_v = cur
         exact = cur / 100 * len(self.rule)
         n, frac = int(exact), round((exact - int(exact)) * 4) / 4
-        col = self._ram_col_t
+        col = self.heat(cur, self.m.accent2)
         if (n, frac, col) != (self._ram_lit, self._ram_col):
             for i, t in enumerate(self.rule):
                 c = col if i < n else blend(self.m.track, col, frac) if i == n else self.m.track
@@ -721,6 +803,9 @@ class BatteryCard(Card):
         x = d["bat_extra"]
         low = (not b.power_plugged) and b.percent <= self.m.cfg["alert_bat"]
         self.ring_.set(b.percent, self.m.warn if low else (self.m.good if b.power_plugged else self.m.accent))
+        self._charging = bool(b.power_plugged and b.percent < 99.5)
+        self.ambient(self.m.good if self._charging else self.m.warn if low else None,
+                     strength=0.85 if self._charging else 0.7)
         self.count(self.lbl, "bat", b.percent, lambda v: f"{v:.0f}%")
         self.set(self.hdr_r, text="secteur" if b.power_plugged else "")
         bits = []
@@ -737,6 +822,23 @@ class BatteryCard(Card):
         if d["thermal"]:
             bits.append(("tiède", "chaud", "très chaud")[min(2, d["thermal"] - 1)])
         self.set(self.l2, text="   ".join(bits))
+
+    def frame(self):
+        import math
+        charging = getattr(self, "_charging", False)
+        if not charging and not getattr(self, "_breath", False):
+            return
+        self._breath = charging
+        if self._hover > 0.05:   # le survol a la main sur le contour
+            return
+        if not charging or not self.app.anim.on:
+            self._paint_hover(self._hover)
+            return
+        p = 0.5 + 0.5 * math.sin(time.time() * 2 * math.pi / 2.6)   # une respiration toutes les 2,6 s
+        col = anim.mix(self.m.edge, self.m.good, 0.25 + 0.5 * p)
+        if col != getattr(self, "_breath_c", None):
+            self._breath_c = col
+            self.cv.itemconfigure(self.bd, outline=col)
 
 
 class MusicCard(Card):
@@ -765,6 +867,14 @@ class MusicCard(Card):
         self.set(self.title_, text=_trunc(n["title"], 30) if n else "Rien en lecture")
         self.set(self.artist, text=_trunc(n["artist"], 40) if n else "Lancez un morceau, il s'affichera ici")
         self._playing = bool(n and n["playing"])
+        art = n.get("color") if n else None
+        self.ambient(art or (self.m.accent if self._playing else None),
+                     blend(art, "#000000", 0.35) if art else None, strength=1.0 if art else 0.6)
+        eq = blend(art, "#FFFFFF", 0.25) if art and self.m.dark else art or self.m.accent
+        if eq != getattr(self, "_eq_col", None):
+            self._eq_col = eq
+            for bar in self.eq:
+                self.cv.itemconfigure(bar, fill=eq)
 
     def frame(self):
         import math
@@ -841,6 +951,18 @@ def weather_kind(code):
     return "cloudy"
 
 
+SKY = {   # type de temps : (lumière, teinte) de jour, puis de nuit
+    "clear": (("#FFB040", "#2E8BEA"), ("#7C8CF0", "#1B2A66")),
+    "partly": (("#F5B94A", "#5F8DC0"), ("#7483D8", "#24305E")),
+    "cloudy": (("#9AA8BC", "#5A6A80"), ("#6A7590", "#262D45")),
+    "fog": (("#B4BCC6", "#707986"), ("#7A8190", "#2C3140")),
+    "drizzle": (("#6C9AD0", "#3C5878"), ("#4F6FA8", "#1E2A48")),
+    "rain": (("#4F8BD8", "#2C4A70"), ("#3F64A8", "#1A2546")),
+    "snow": (("#D6E8FF", "#86A6CF"), ("#9DB4E0", "#2E3D66")),
+    "storm": (("#8A6CE0", "#2E3458"), ("#7058C8", "#1E1E3C")),
+}
+
+
 class WeatherScene:
     """Petite scène météo vectorielle (soleil, lune, nuages, pluie, neige, éclairs, brouillard), animée en douceur.
     Coordonnées « logiques » de la carte, mises à l'échelle de l'écran par kx / ky."""
@@ -850,9 +972,9 @@ class WeatherScene:
         self.c, self.cv, self.m = card, card.cv, card.m
         self.cx, self.cy, self.s, self.kind, self.night, self.animated = cx, cy, s, kind, night, animated
         self.items, self.parts, self.t0 = [], [], time.time()
+        self.bg = card.bg_at(cx, cy, final=not animated)
         self.fall = 12 if animated else 6   # hauteur de chute de la pluie / neige (petite icône : courte)
         dark = self.m.dark
-        self.bgc = card.key if card.win_blur else self.m.bg   # couleur réelle du fond (découpe du croissant)
         self.cloud = "#E3E8EF" if dark else "#AEB8C5"
         self.cloud2 = "#B9C2CE" if dark else "#8E99A8"
         if kind == "storm":
@@ -876,10 +998,10 @@ class WeatherScene:
         return self._add(kind, pts, self.cv.create_oval(*self._xy(pts), fill=fill, outline=""), **extra)
 
     def _sun(self, x, y, r):
-        s, bg = self.s, self.m.bg
+        s, bg = self.s, self.bg
         for k, a in ((1.85, 0.10), (1.5, 0.2)):   # halo lumineux
             self._oval("glow", x - r * k, y - r * k, x + r * k, y + r * k, blend(bg, self.SUN, a), r=r * k, cx=x, cy=y,
-                       k=k)
+                       k=k, a=a, col=self.SUN)
         for i in range(8):   # rayons
             self._add("ray", [x, y], self.cv.create_line(0, 0, 0, 0, fill=self.SUN, capstyle="round",
                                                          width=max(1.0, 2.2 * s * self.c.kx)), i=i, r=r)
@@ -887,11 +1009,24 @@ class WeatherScene:
         self._oval("still", x - r * 0.55, y - r * 0.75, x - r * 0.05, y - r * 0.3, blend(self.SUN, "#FFFFFF", 0.45))
 
     def _moon(self, x, y, r):
-        bg = self.m.bg
-        self._oval("glow", x - r * 1.7, y - r * 1.7, x + r * 1.7, y + r * 1.7, blend(bg, self.MOON, 0.10), r=r * 1.7,
-                   cx=x, cy=y, k=1.7)
-        self._oval("still", x - r, y - r, x + r, y + r, self.MOON)
-        self._oval("still", x - r * 0.35, y - r * 1.15, x + r * 1.45, y + r * 0.65, self.bgc)   # croissant
+        import math
+        self._oval("glow", x - r * 1.7, y - r * 1.7, x + r * 1.7, y + r * 1.7, blend(self.bg, self.MOON, 0.10),
+                   r=r * 1.7, cx=x, cy=y, k=1.7, a=0.10, col=self.MOON)
+        # croissant dessiné en vrai (et non un disque masqué) : il reste juste sur un fond en dégradé
+        ccx, ccy, rc = x + r * 0.55, y - r * 0.25, r * 0.9
+        tc = math.atan2(ccy - y, ccx - x)
+        pts = []
+        for i in range(73):
+            a = tc + math.pi + math.pi * (i / 36 - 1)
+            px, py = x + r * math.cos(a), y + r * math.sin(a)
+            if math.hypot(px - ccx, py - ccy) >= rc:
+                pts += [px, py]
+        for i in range(73):
+            a = tc + math.pi + math.pi * (1 - i / 36)
+            px, py = ccx + rc * math.cos(a), ccy + rc * math.sin(a)
+            if math.hypot(px - x, py - y) <= r:
+                pts += [px, py]
+        self._add("poly", pts, self.cv.create_polygon(*self._xy(pts), fill=self.MOON, outline="", smooth=True))
         if self.animated:
             for i, (dx, dy) in enumerate(((-30, -16), (26, -22), (30, 14), (-26, 18))):   # étoiles scintillantes
                 sx, sy = x + dx * self.s, y + dy * self.s
@@ -920,7 +1055,7 @@ class WeatherScene:
                 yy = y + (10 + i * 7) * s
                 w = (24 - i * 4) * s
                 self._add("fog", [x - w, yy, x + w, yy], self.cv.create_line(
-                    *self._xy([x - w, yy, x + w, yy]), fill=blend(self.m.bg, self.cloud, 0.75 - i * 0.15),
+                    *self._xy([x - w, yy, x + w, yy]), fill=blend(self.bg, self.cloud, 0.75 - i * 0.15),
                     width=max(1.0, 3.2 * s * self.c.kx), capstyle="round"), i=i)
         else:
             if k == "cloudy":
@@ -953,6 +1088,8 @@ class WeatherScene:
         t = 0.0 if still else time.time() - self.t0
         s, cv, c = self.s, self.cv, self.c
         intro = 1.0 if still else anim.ease_out(min(1.0, t / 0.7))
+        if not still:
+            self.bg = c.bg_at(self.cx, self.cy, final=False)
         lift = (1 - intro) * 8 * s   # la scène apparaît en remontant doucement
         for p in self.parts:
             kind, b, it = p["kind"], p["base"], p["item"]
@@ -963,6 +1100,7 @@ class WeatherScene:
                                          b[0] + r1 * math.cos(a), b[1] + r1 * math.sin(a) + lift]))
             elif kind == "glow":
                 r = p["r"] * (1 + 0.05 * math.sin(t * 1.6 + p["k"]))
+                c.fill(it, blend(self.bg, p["col"], p["a"]))
                 cv.coords(it, *self._xy([p["cx"] - r, p["cy"] - r + lift, p["cx"] + r, p["cy"] + r + lift]))
             elif kind == "cloud":
                 dx = math.sin(t * 0.55 + p["drift"] * 2) * 2.6 * s * p["drift"]
@@ -972,20 +1110,23 @@ class WeatherScene:
                 ln = (4 if p["short"] else 7) * s
                 x0, y0 = b[0] - ph * 3 * s, b[1] + ph * self.fall * s + lift
                 cv.coords(it, *self._xy([x0, y0, x0 - 1.6 * s, y0 + ln]))
-                c.fill(it, anim.mix(self.rain, self.m.bg, max(0.0, ph - 0.7) / 0.3))   # s'efface en tombant
+                c.fill(it, anim.mix(self.rain, self.bg, max(0.0, ph - 0.7) / 0.3))   # s'efface en tombant
             elif kind == "flake":
                 ph = (t * 0.32 + p["i"] / 6) % 1
                 dx = math.sin(t * 1.8 + p["i"] * 1.3) * 2.5 * s
                 dy = ph * self.fall * s + lift
                 cv.coords(it, *self._xy([b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy]))
-                c.fill(it, anim.mix(self.snow, self.m.bg, max(0.0, ph - 0.75) / 0.25))
+                c.fill(it, anim.mix(self.snow, self.bg, max(0.0, ph - 0.75) / 0.25))
             elif kind == "fog":
                 dx = math.sin(t * 0.5 + p["i"] * 1.9) * 5 * s
                 cv.coords(it, *self._xy([b[0] + dx, b[1] + lift, b[2] + dx, b[3] + lift]))
             elif kind == "star":
-                c.fill(it, anim.mix(self.m.bg, self.MOON, 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2.1 + p["i"] * 1.7))))
+                c.fill(it, anim.mix(self.bg, self.MOON, 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2.1 + p["i"] * 1.7))))
                 if lift:
                     cv.coords(it, *self._xy([b[0], b[1] + lift, b[2], b[3] + lift]))
+            elif kind == "poly":
+                if lift or still or t < 0.8:
+                    cv.coords(it, *self._xy([v + (lift if i % 2 else 0) for i, v in enumerate(b)]))
             elif kind == "bolt":
                 ph = t % 3.4   # double éclair bref toutes les 3,4 s
                 on = still or ph < 0.09 or 0.18 < ph < 0.26
@@ -1044,6 +1185,8 @@ class WeatherCard(Card):
                tuple((h[3] if len(h) > 3 else None, h[4] if len(h) > 4 else 1) for h in hours))
         if sig != self._sig:   # nouvelle scène seulement quand le temps change
             self._sig = sig
+            glow, base = SKY.get(sig[0], SKY["cloudy"])[1 if sig[1] else 0]
+            self.ambient(glow, base)
             if self.scene:
                 self.scene.destroy()
             for m in self.minis:
@@ -1217,10 +1360,12 @@ class CardManager:
             self.bg, self.fg, self.sub, self.track = "#15181D", "#EEF1F5", "#9AA3B0", "#2C333D"
             self.edge = "#272D36"
             self.accent2, self.good, self.warn = "#5AD1C4", "#4CD787", "#FF5D4F"
+            self.hot = "#FFA53D"
         else:           # papier froid
             self.bg, self.fg, self.sub, self.track = "#F5F7FA", "#14171C", "#5C6573", "#D7DCE3"
             self.edge = "#DDE2E9"
             self.accent2, self.good, self.warn = "#14897D", "#1E8E4E", "#D93A2F"
+            self.hot = "#D9822B"
         self.fallback_bg = self.bg
 
     # ----- construction ---------------------------------------------------------

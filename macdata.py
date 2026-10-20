@@ -175,8 +175,50 @@ async def _win_now_playing():
     playing = sess.get_playback_info().playback_status == _PlayStatus.PLAYING
     if not (props.title or props.artist):
         return None
+    key = (props.title, props.artist, props.album_title)
+    if key not in _art_colors:   # couleur de la pochette : lue une fois par morceau
+        _art_colors.clear()
+        _art_colors[key] = await _win_art_color(props)
     return {"app": sess.source_app_user_model_id or "Windows", "title": props.title or "",
-            "artist": props.artist or "", "playing": playing}
+            "artist": props.artist or "", "playing": playing, "color": _art_colors[key]}
+
+
+_art_colors = {}
+
+
+async def _win_art_color(props):
+    """Couleur dominante et vive de la pochette du morceau en cours (#rrggbb), ou None."""
+    try:
+        from winsdk.windows.storage.streams import Buffer, InputStreamOptions
+        if props.thumbnail is None:
+            return None
+        stream = await props.thumbnail.open_read_async()
+        size = min(int(stream.size), 8 * 1024 * 1024)
+        buf = Buffer(size)
+        await stream.read_async(buf, size, InputStreamOptions.READ_AHEAD)
+        return vivid_color(bytes(memoryview(buf))[:buf.length])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def vivid_color(data):
+    """Couleur la plus vive et la plus présente d'une image (octets), ou None si elle est grise."""
+    import colorsys
+    import io
+    from PIL import Image
+    with Image.open(io.BytesIO(data)) as im:
+        px = list(im.convert("RGB").resize((24, 24)).getdata())
+    hsv = [colorsys.rgb_to_hsv(*[c / 255 for c in p]) for p in px]
+    best = sorted(hsv, key=lambda h: -(h[1] * h[2]))[:max(1, len(hsv) // 5)]
+    if sum(h[1] for h in best) / len(best) < 0.18:
+        return None
+    # teinte moyenne (sur le cercle des couleurs) des pixels les plus vifs
+    import math
+    x = sum(math.cos(h[0] * 2 * math.pi) for h in best)
+    y = sum(math.sin(h[0] * 2 * math.pi) for h in best)
+    hue = (math.atan2(y, x) / (2 * math.pi)) % 1
+    r, g, b = colorsys.hsv_to_rgb(hue, 0.65, 0.85)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 async def _win_state():
