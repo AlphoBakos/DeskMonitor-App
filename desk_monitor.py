@@ -1061,8 +1061,17 @@ class DeskWidget(VoiceMixin, AssistantMixin, WallpaperMixin, UpdateMixin, Alerts
             bottom = self._work_area()[3]
             overflow = [cat for cat, win in self.organizer.fences.items()
                         if win.winfo_y() + win.winfo_height() > bottom + 8]   # panneau coupé en bas de l'écran
-            if overflow:
-                self.organizer.auto_layout()          # rangement complet : les panneaux s'adaptent pour tenir
+            top = self._work_area()[1]
+            for cat in overflow:   # panneau coupé en bas : il remonte juste ce qu'il faut, les autres ne bougent pas
+                win = self.organizer.fences[cat]
+                y = bottom - win.winfo_height() - 8
+                if y >= top:
+                    self.anim.glide(win, win.winfo_x(), y)
+                    self.cfg["positions"][f"fence:{cat}"] = [win.winfo_x(), y]
+            if any(self.organizer.fences[cat].winfo_height() > bottom - top - 16 for cat in overflow):
+                self.organizer.auto_layout()          # plus haut que l'écran : les panneaux s'adaptent pour tenir
+            elif overflow:
+                self.save()
             elif misplaced:
                 self.organizer.auto_layout(only=misplaced)
             if not self.cfg["widgets_hidden"] and not self.game_active:

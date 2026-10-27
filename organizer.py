@@ -354,7 +354,7 @@ class _Plates:
     def __init__(self, src, px, plate, col, vis, dark, scale, glass):
         self.src, self.px, self.plate, self.col, self.vis = src, px, plate, col, vis
         self.dark, self.glass = dark, glass
-        self.m = max(3, int(5 * scale))           # marge autour de la plaque : place pour la lueur
+        self.m = max(2, int(3 * scale))           # marge autour de la plaque : place pour la lueur
         self.lift = max(1, int(2 * scale))        # l'icône se soulève de quelques pixels au survol
         self.cache = {}
 
@@ -948,7 +948,7 @@ class DesktopOrganizer:
         ts = max(8, round(10 * int(c["card_text_scale"]) / 100))
         f_tile = tkfont.Font(family=fam, size=max(7, ts - 1))
         collapsed = cat in c["org_collapsed"]
-        plate = px + 2 * max(4, int(px * 0.2))          # plaque arrondie sous l'icône
+        plate = px + 2 * max(3, int(px * 0.14))         # plaque arrondie sous l'icône
         tile_w = max(plate + int(10 * scale), int(84 * scale))
 
         outer = tk.Frame(win, bg=bg)
@@ -956,13 +956,18 @@ class DesktopOrganizer:
         outer._fence_cat = cat
 
         # ----- en-tête : lueur de la couleur du panneau, badge, titre, compteur, filet qui s'estompe -----
-        hh = int(42 * scale)
+        hh = int(38 * scale)
         head = tk.Canvas(outer, bg=bg, height=hh, highlightthickness=0, bd=0, width=tile_w)
         head.pack(fill="x")
         head._fence_cat = cat
         f_title = (fam, ts + 1, "bold")
         f_small = (fam, max(7, ts - 1), "bold")
         light = blend_hex(col, "#FFFFFF", 0.35) if cm.dark else blend_hex(col, "#000000", 0.25)
+        # largeur minimale de l'en-tête : badge, titre, pastille du compteur et flèche ne se chevauchent jamais
+        need = (int(12 * scale) + int(26 * scale) + int(9 * scale) + tkfont.Font(font=f_title).measure(cat)
+                + int(16 * scale) + tkfont.Font(font=f_small).measure(str(len(items))) + int(14 * scale)
+                + int(30 * scale) + int(12 * scale))
+        head.configure(width=need)
 
         def draw_head(_e=None):
             w = max(head.winfo_width(), 50)
@@ -1030,7 +1035,7 @@ class DesktopOrganizer:
             bind_right_click(w, lambda e, k=cat: self._fence_menu(e, k))
 
         for i, it in enumerate(items):
-            tile = tk.Frame(body, bg=bg, padx=2, pady=4, cursor="hand2")
+            tile = tk.Frame(body, bg=bg, padx=2, pady=1, cursor="hand2")
             tile.grid(row=i // cols, column=i % cols, sticky="n", padx=1, pady=1)
             tile._tile_path = it["path"]
             tile._fence_cat = cat
